@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.2.2
+
+- 发布流程自动化：打 tag 后自动更新 Homebrew tap 的 formula（版本、URL、sha256）
+
 ## 0.2.1
 
 - 新增 `bili update` / `bili update --check`：二进制安装可原地自更新，Homebrew 用户提示走 `brew upgrade`

@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "bilicli"
-version = "0.2.1"
+version = "0.2.2"
 description = "A zero-dependency Bilibili CLI with a stable agent-friendly JSON envelope, QR login, subtitles, audio extraction and ASR"
 readme = "README.md"
 license = { file = "LICENSE" }

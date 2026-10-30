@@ -1,0 +1,38 @@
+class Bili < Formula
+  desc "Zero-dependency Bilibili CLI with JSON envelope, QR login and ASR"
+  homepage "https://github.com/qunqin219/bcli"
+  version "__VERSION__"
+  license "MIT"
+
+  on_macos do
+    on_arm do
+      url "https://github.com/qunqin219/bcli/releases/download/v__VERSION__/bili-macos-arm64"
+      sha256 "__SHA_MACOS__"
+    end
+
+    on_intel do
+      url "https://github.com/qunqin219/bcli/releases/download/v__VERSION__/bilicli-__VERSION__.tar.gz"
+      sha256 "__SHA_SDIST__"
+    end
+  end
+
+  on_linux do
+    url "https://github.com/qunqin219/bcli/releases/download/v__VERSION__/bili-linux-x64"
+    sha256 "__SHA_LINUX__"
+  end
+
+  def install
+    if File.exist?("bili-macos-arm64")
+      bin.install "bili-macos-arm64" => "bili"
+    elsif File.exist?("bili-linux-x64")
+      bin.install "bili-linux-x64" => "bili"
+    else
+      system "python3", "-m", "pip", "install", "--prefix=#{prefix}", "."
+      bin.install_symlink prefix/"bin/bili"
+    end
+  end
+
+  test do
+    assert_match "bili __VERSION__", shell_output("#{bin}/bili --version")
+  end
+end

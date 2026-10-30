@@ -98,3 +98,52 @@ jobs:
         uses: pypa/gh-action-pypi-publish@release/v1
         with:
           password: ${{ secrets.PYPI_API_TOKEN }}
+
+  tap:
+    needs: [release, build-dist, binaries]
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/v')
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+      - name: Render formula
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          VERSION="${TAG#v}"
+          SHA_LINUX=$(sha256sum artifacts/bin-linux-x64/* | cut -d' ' -f1)
+          SHA_MACOS=$(sha256sum artifacts/bin-macos-arm64/* | cut -d' ' -f1)
+          SHA_SDIST=$(sha256sum artifacts/dist/*.tar.gz | cut -d' ' -f1)
+          sed -e "s/__VERSION__/${VERSION}/g" \
+              -e "s/__SHA_LINUX__/${SHA_LINUX}/g" \
+              -e "s/__SHA_MACOS__/${SHA_MACOS}/g" \
+              -e "s/__SHA_SDIST__/${SHA_SDIST}/g" \
+              packaging/bili.rb.tmpl > bili.rb
+          echo "--- rendered ---"
+          head -20 bili.rb
+      - name: Push to homebrew-tap
+        env:
+          SSH_KEY: ${{ secrets.HOMEBREW_TAP_DEPLOY_KEY }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          mkdir -p ~/.ssh
+          printf '%s\n' "$SSH_KEY" > ~/.ssh/deploy
+          chmod 600 ~/.ssh/deploy
+          ssh-keyscan github.com >> ~/.ssh/known_hosts 2>/dev/null
+          export GIT_SSH_COMMAND="ssh -i ~/.ssh/deploy -o StrictHostKeyChecking=yes"
+          git clone --depth 1 git@github.com:qunqin219/homebrew-tap.git tap
+          cp bili.rb tap/Formula/bili.rb
+          cd tap
+          git config user.name "观澜"
+          git config user.email "193301971+qunqin219@users.noreply.github.com"
+          git add Formula/bili.rb
+          if git diff --cached --quiet; then
+            echo "formula already up to date"
+          else
+            git commit -m "bili ${TAG#v}"
+            git push origin HEAD:master
+          fi
