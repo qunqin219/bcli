@@ -41,11 +41,12 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.13"
-      - run: |
+      - name: Install
+        run: |
           python -m pip install --upgrade pip
-          pip install -e ".[qr]" pyinstaller
+          pip install ".[qr]" pyinstaller
       - name: Build one-file binary
-        run: pyinstaller --onefile --name bili --collect-all qrcode bilicli/cli.py
+        run: pyinstaller --onefile --name bili --paths . --collect-all qrcode --collect-submodules bilicli scripts/entry.py
       - name: Package
         shell: bash
         run: |
@@ -54,13 +55,34 @@ jobs:
             cp dist/bili.exe "out/bili-${{ matrix.name }}.exe"
           else
             cp dist/bili "out/bili-${{ matrix.name }}"
+            chmod +x "out/bili-${{ matrix.name }}"
           fi
       - uses: actions/upload-artifact@v4
         with:
           name: bin-${{ matrix.name }}
           path: out/*
 
-  publish:
+  release:
+    needs: [build-dist, binaries]
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/v')
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+      - name: Arrange assets
+        run: |
+          mkdir -p assets
+          cp artifacts/dist/* assets/
+          find artifacts -name 'bili-*' -type f -exec cp {} assets/ \;
+          ls -lh assets
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: assets/*
+          generate_release_notes: true
+
+  pypi:
     needs: [build-dist]
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/v')
@@ -70,6 +92,7 @@ jobs:
           name: dist
           path: dist
       - name: Publish to PyPI
+        if: ${{ secrets.PYPI_API_TOKEN != '' }}
         uses: pypa/gh-action-pypi-publish@release/v1
         with:
           password: ${{ secrets.PYPI_API_TOKEN }}
