@@ -254,7 +254,17 @@ def run(args: argparse.Namespace) -> Any:
     raise SystemExit(f"unknown command: {cmd}")
 
 
+def _ensure_utf8() -> None:
+    """Windows consoles default to cp1252 and choke on Chinese help text."""
+    for stream in (sys.stdout, sys.stderr):
+        try:
+            stream.reconfigure(encoding="utf-8", errors="replace")
+        except (AttributeError, ValueError):
+            pass
+
+
 def main(argv: list[str] | None = None) -> int:
+    _ensure_utf8()
     args = build_parser().parse_args(argv)
     try:
         emit(Envelope.ok(run(args)), pretty=args.pretty)
