@@ -77,10 +77,13 @@ def render_png(url: str, path: Path) -> bool:
         import qrcode  # type: ignore
     except ImportError:
         return False
-    img = qrcode.make(url)
-    path.parent.mkdir(parents=True, exist_ok=True)
-    img.save(str(path))
-    return True
+    try:
+        img = qrcode.make(url)
+        path.parent.mkdir(parents=True, exist_ok=True)
+        img.save(str(path))
+        return True
+    except Exception:  # missing Pillow, unwritable path, ...
+        return False
 
 
 def qr_login(
