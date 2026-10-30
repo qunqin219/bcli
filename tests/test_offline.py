@@ -71,6 +71,58 @@ class TestConfig(unittest.TestCase):
                 self.assertEqual(config.get("nope", "fallback"), "fallback")
 
 
+class TestRetry(unittest.TestCase):
+    def _http_error(self, code):
+        import io
+        import urllib.error
+
+        return urllib.error.HTTPError("https://x", code, "err", {}, io.BytesIO(b""))
+
+    def test_retries_then_succeeds(self):
+        from bilicli.http import Client
+
+        c = Client(retries=2)
+        calls = {"n": 0}
+
+        class Resp:
+            headers = {"Content-Type": "application/json"}
+
+            def read(self):
+                return b'{"code":0,"data":{"ok":1}}'
+
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *a):
+                return False
+
+        def fake_urlopen(req, timeout=None):
+            calls["n"] += 1
+            if calls["n"] < 3:
+                raise self._http_error(503)
+            return Resp()
+
+        with mock.patch("urllib.request.urlopen", fake_urlopen), mock.patch.object(Client, "_sleep_backoff", lambda *a, **k: None):
+            self.assertEqual(c.get("/x"), {"ok": 1})
+        self.assertEqual(calls["n"], 3)
+
+    def test_gives_up_after_retries(self):
+        from bilicli.http import Client, NetworkError
+
+        c = Client(retries=1)
+        with mock.patch("urllib.request.urlopen", side_effect=self._http_error(502)), mock.patch.object(Client, "_sleep_backoff", lambda *a, **k: None):
+            with self.assertRaises(NetworkError):
+                c.get("/x")
+
+    def test_does_not_retry_404(self):
+        from bilicli.http import Client, NetworkError
+
+        c = Client(retries=3)
+        with mock.patch("urllib.request.urlopen", side_effect=self._http_error(404)):
+            with self.assertRaises(NetworkError):
+                c.get("/x")
+
+
 class TestParsing(unittest.TestCase):
     def test_parse_keeps_lists_and_ints(self):
         c = Client()

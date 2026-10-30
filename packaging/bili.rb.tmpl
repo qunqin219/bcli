@@ -17,8 +17,15 @@ class Bili < Formula
   end
 
   on_linux do
-    url "https://github.com/qunqin219/bcli/releases/download/v__VERSION__/bili-linux-x64"
-    sha256 "__SHA_LINUX__"
+    on_arm do
+      url "https://github.com/qunqin219/bcli/releases/download/v__VERSION__/bili-linux-arm64"
+      sha256 "__SHA_LINUX_ARM__"
+    end
+
+    on_intel do
+      url "https://github.com/qunqin219/bcli/releases/download/v__VERSION__/bili-linux-x64"
+      sha256 "__SHA_LINUX__"
+    end
   end
 
   def install
@@ -26,6 +33,8 @@ class Bili < Formula
       bin.install "bili-macos-arm64" => "bili"
     elsif File.exist?("bili-linux-x64")
       bin.install "bili-linux-x64" => "bili"
+    elsif File.exist?("bili-linux-arm64")
+      bin.install "bili-linux-arm64" => "bili"
     else
       system "python3", "-m", "pip", "install", "--prefix=#{prefix}", "."
       bin.install_symlink prefix/"bin/bili"

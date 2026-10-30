@@ -1,7 +1,12 @@
 # Changelog
 
-## Unreleased
+## 0.2.3
 
+- 发布产物新增 `checksums.txt`，用户可自行校验下载的二进制
+- 新增 Linux arm64 预编译二进制，Homebrew formula 同步支持
+- HTTP 层加入有界重试与退避：412/429/5xx 与网络错误会重试，尊重 `Retry-After`，`BILI_RETRIES` 可调
+- 新增联网集成测试（`BILI_INTEGRATION=1`）与每周 CI 任务
+- 新增英文 README
 - 版本号改为单一来源（`importlib.metadata`，避免 `__init__` 与 `pyproject` 漂移）
 - 补齐项目治理文件：CONTRIBUTING / SECURITY / issue 模板 / PR 模板 / dependabot
 - `.gitignore` 覆盖 build、dist、spec 等构建产物

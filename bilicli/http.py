@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 import time
 import urllib.error
 import urllib.parse
@@ -50,7 +51,17 @@ class NetworkError(Exception):
 
 
 class Client:
-    def __init__(self, credential: dict[str, str] | None = None, timeout: int = 20):
+    def __init__(
+        self,
+        credential: dict[str, str] | None = None,
+        timeout: int = 20,
+        retries: int | None = None,
+    ):
+        if retries is None:
+            try:
+                retries = int(os.environ.get("BILI_RETRIES", "2"))
+            except ValueError:
+                retries = 2
         self.cookies: dict[str, str] = {}
         if credential:
             if credential.get("sessdata"):
@@ -60,6 +71,7 @@ class Client:
             if credential.get("dedeuserid"):
                 self.cookies["DedeUserID"] = credential["dedeuserid"]
         self.timeout = timeout
+        self.retries = max(0, retries)
         self._wbi: tuple[str, str] | None = None
         self._wbi_at = 0.0
 
@@ -113,26 +125,54 @@ class Client:
         return signed
 
     # -- requests --------------------------------------------------------
-    def _open(self, url: str, headers: dict[str, str]) -> bytes:
-        req = urllib.request.Request(url, headers=headers)
-        try:
-            with urllib.request.urlopen(req, timeout=self.timeout) as resp:
-                raw = resp.read()
-                encoding = (resp.headers.get("Content-Encoding") or "").lower()
-            if encoding == "gzip":
-                import gzip
-                return gzip.decompress(raw)
-            if encoding == "deflate":
-                import zlib
-                try:
-                    return zlib.decompress(raw)
-                except zlib.error:
-                    return zlib.decompress(raw, -zlib.MAX_WBITS)
-            return raw
-        except urllib.error.HTTPError as exc:
-            raise NetworkError(f"HTTP {exc.code}: {url.split('?')[0]}") from exc
-        except (urllib.error.URLError, TimeoutError) as exc:
-            raise NetworkError(f"{exc}: {url.split('?')[0]}") from exc
+    #: HTTP statuses worth retrying: rate limiting, anti-scraping, transient 5xx.
+    RETRY_STATUS = frozenset({412, 429, 500, 502, 503, 504})
+
+    def _sleep_backoff(self, attempt: int, retry_after: str | None = None) -> None:
+        import random
+
+        if retry_after:
+            try:
+                time.sleep(min(float(retry_after), 30))
+                return
+            except ValueError:
+                pass
+        delay = min(0.5 * (2**attempt), 8) + random.uniform(0, 0.25)
+        time.sleep(delay)
+
+    def _open(self, url: str, headers: dict[str, str], *, retries: int | None = None) -> bytes:
+        """GET with bounded retries. Only safe because GET is idempotent."""
+        attempts = (self.retries if retries is None else retries) + 1
+        last_error = ""
+        for attempt in range(attempts):
+            req = urllib.request.Request(url, headers=headers)
+            try:
+                with urllib.request.urlopen(req, timeout=self.timeout) as resp:
+                    raw = resp.read()
+                    encoding = (resp.headers.get("Content-Encoding") or "").lower()
+                if encoding == "gzip":
+                    import gzip
+                    return gzip.decompress(raw)
+                if encoding == "deflate":
+                    import zlib
+                    try:
+                        return zlib.decompress(raw)
+                    except zlib.error:
+                        return zlib.decompress(raw, -zlib.MAX_WBITS)
+                return raw
+            except urllib.error.HTTPError as exc:
+                if exc.code in self.RETRY_STATUS and attempt < attempts - 1:
+                    self._sleep_backoff(attempt, exc.headers.get("Retry-After"))
+                    last_error = f"HTTP {exc.code}"
+                    continue
+                raise NetworkError(f"HTTP {exc.code}: {url.split('?')[0]}") from exc
+            except (urllib.error.URLError, TimeoutError) as exc:
+                if attempt < attempts - 1:
+                    self._sleep_backoff(attempt)
+                    last_error = str(exc)
+                    continue
+                raise NetworkError(f"{exc}: {url.split('?')[0]}") from exc
+        raise NetworkError(f"{last_error or '重试耗尽'}: {url.split('?')[0]}")
 
     def _parse(self, raw: bytes, path: str) -> Any:
         try:

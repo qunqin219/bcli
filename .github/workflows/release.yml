@@ -49,6 +49,8 @@ jobs:
         include:
           - os: ubuntu-latest
             name: linux-x64
+          - os: ubuntu-24.04-arm
+            name: linux-arm64
           - os: macos-latest
             name: macos-arm64
           - os: windows-latest
@@ -92,6 +94,9 @@ jobs:
           mkdir -p assets
           cp artifacts/dist/*.whl artifacts/dist/*.tar.gz assets/ 2>/dev/null || true
           find artifacts -name 'bili-*' -type f -exec cp {} assets/ \;
+          cd assets
+          sha256sum bili-* *.whl *.tar.gz > checksums.txt
+          cd ..
           ls -lh assets
       - name: Extract release notes from CHANGELOG
         env:
@@ -145,10 +150,12 @@ jobs:
           set -euo pipefail
           VERSION="${TAG#v}"
           SHA_LINUX=$(sha256sum artifacts/bin-linux-x64/* | cut -d' ' -f1)
+          SHA_LINUX_ARM=$(sha256sum artifacts/bin-linux-arm64/* | cut -d' ' -f1)
           SHA_MACOS=$(sha256sum artifacts/bin-macos-arm64/* | cut -d' ' -f1)
           SHA_SDIST=$(sha256sum artifacts/dist/*.tar.gz | cut -d' ' -f1)
           sed -e "s/__VERSION__/${VERSION}/g" \
               -e "s/__SHA_LINUX__/${SHA_LINUX}/g" \
+              -e "s/__SHA_LINUX_ARM__/${SHA_LINUX_ARM}/g" \
               -e "s/__SHA_MACOS__/${SHA_MACOS}/g" \
               -e "s/__SHA_SDIST__/${SHA_SDIST}/g" \
               packaging/bili.rb.tmpl > bili.rb
