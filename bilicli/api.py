@@ -11,7 +11,7 @@ from pathlib import Path
 from typing import Any
 
 from . import config
-from .http import API, Client, NotFoundError
+from .http import API, Client, NetworkError, NotFoundError
 
 BVID_RE = re.compile(r"BV[0-9A-Za-z]{10}")
 
@@ -268,18 +268,17 @@ def watch_later(c: Client, limit: int = 30) -> list[dict]:
     ]
 
 
-def dynamic_feed(c: Client, limit: int = 20) -> list[dict]:
-    payload = c.get("/x/polymer/web-dynamic/v1/feed/all", {"type": "all", "page": 1}, auth_required=True)
+def dynamic_feed(c: Client, limit: int = 20, page: int = 1) -> list[dict]:
+    payload = c.get("/x/polymer/web-dynamic/v1/feed/all", {"type": "all", "page": page}, auth_required=True)
     return [_dynamic_item(i) for i in (payload.get("items") or [])[:limit]]
 
 
-def my_dynamics(c: Client, limit: int = 20) -> list[dict]:
+def my_dynamics(c: Client, limit: int = 20, offset: str = "") -> list[dict]:
     me = whoami(c)
-    payload = c.get(
-        "/x/polymer/web-dynamic/v1/feed/space",
-        {"host_mid": me["id"], "timezone_offset": -480},
-        auth_required=True,
-    )
+    params: dict[str, Any] = {"host_mid": me["id"], "timezone_offset": -480}
+    if offset:
+        params["offset"] = offset
+    payload = c.get("/x/polymer/web-dynamic/v1/feed/space", params, auth_required=True)
     return [_dynamic_item(i) for i in (payload.get("items") or [])[:limit]]
 
 
@@ -393,6 +392,162 @@ def transcribe(paths: list[str], model: str | None = None, timeout: int = 1800) 
     if not payload.get("ok"):
         raise RuntimeError((payload.get("error") or {}).get("message", "ASR 失败"))
     return payload["data"]
+
+
+# --------------------------------------------------------------------------
+# writes
+# --------------------------------------------------------------------------
+def like(c: Client, bvid: str, undo: bool = False) -> dict[str, Any]:
+    # B站用 like=2 表示取消点赞，0 会返回 -400
+    c.post("/x/web-interface/archive/like", {"bvid": bvid, "like": 2 if undo else 1})
+    return {"bvid": bvid, "liked": not undo}
+
+
+def coin(c: Client, bvid: str, count: int = 1, also_like: bool = False) -> dict[str, Any]:
+    if count not in (1, 2):
+        raise ValueError("投币数只能是 1 或 2")
+    data = c.post(
+        "/x/web-interface/coin/add",
+        {"bvid": bvid, "multiply": count, "select_like": 1 if also_like else 0},
+    )
+    return {"bvid": bvid, "coins": count, "liked": also_like, "multiply": _int(data.get("multiply"))}
+
+
+def triple(c: Client, bvid: str) -> dict[str, Any]:
+    """点赞 + 投币 + 收藏到默认收藏夹。"""
+    like(c, bvid)
+    coin(c, bvid, 1, also_like=False)
+    aid = str(c.get("/x/web-interface/view", {"bvid": bvid}).get("aid"))
+    folders = favorites(c)
+    folder_id = str(folders[0]["id"]) if folders else None
+    if folder_id:
+        c.post("/x/v3/fav/resource/deal", {"rid": aid, "type": 2, "add_media_ids": folder_id})
+    return {"bvid": bvid, "liked": True, "coins": 1, "favorited": bool(folder_id)}
+
+
+def follow(c: Client, uid: str, undo: bool = False) -> dict[str, Any]:
+    c.post("/x/relation/modify", {"fid": uid, "act": 2 if undo else 1, "re_src": 11})
+    return {"uid": uid, "following": not undo}
+
+
+def favorite_add(c: Client, bvid: str, folder_id: str) -> dict[str, Any]:
+    aid = str(c.get("/x/web-interface/view", {"bvid": bvid}).get("aid"))
+    c.post("/x/v3/fav/resource/deal", {"rid": aid, "type": 2, "add_media_ids": folder_id})
+    return {"bvid": bvid, "folder": folder_id, "added": True}
+
+
+def favorite_remove(c: Client, bvid: str, folder_id: str) -> dict[str, Any]:
+    aid = str(c.get("/x/web-interface/view", {"bvid": bvid}).get("aid"))
+    c.post("/x/v3/fav/resource/deal", {"rid": aid, "type": 2, "del_media_ids": folder_id})
+    return {"bvid": bvid, "folder": folder_id, "removed": True}
+
+
+def comment(c: Client, bvid: str, message: str) -> dict[str, Any]:
+    aid = c.get("/x/web-interface/view", {"bvid": bvid}).get("aid")
+    data = c.post("/x/v2/reply/add", {"oid": aid, "type": 1, "message": message, "plat": 1})
+    return {"bvid": bvid, "rpid": str((data.get("rpid_str") or data.get("rpid") or ""))}
+
+
+# --------------------------------------------------------------------------
+# extras
+# --------------------------------------------------------------------------
+def favorites_contents(c: Client, folder_id: str, page: int = 1, limit: int = 20) -> list[dict]:
+    payload = c.get(
+        "/x/v3/fav/resource/list",
+        {"media_id": folder_id, "pn": page, "ps": min(limit, 40), "platform": "web"},
+        auth_required=True,
+    )
+    rows = payload.get("medias") or []
+    return [
+        {
+            "bvid": r.get("bvid", ""),
+            "title": r.get("title", ""),
+            "upper": (r.get("upper") or {}).get("name", ""),
+            "duration": r.get("duration"),
+            "fav_time": r.get("fav_time", 0),
+        }
+        for r in rows[:limit]
+    ]
+
+
+def ai_summary(c: Client, bvid: str) -> dict[str, Any]:
+    info = c.get("/x/web-interface/view", {"bvid": bvid})
+    data = c.get(
+        "/x/web-interface/view/conclusion/get",
+        {"bvid": bvid, "cid": info.get("cid"), "up_mid": (info.get("owner") or {}).get("mid")},
+        wbi=True,
+        referer=f"https://www.bilibili.com/video/{bvid}",
+    )
+    model = data.get("model_result") or {}
+    return {
+        "bvid": bvid,
+        "summary": model.get("summary", ""),
+        "outline": [
+            {"title": o.get("title", ""), "points": o.get("part_outline") or []}
+            for o in (model.get("outline") or [])
+        ],
+    }
+
+
+def related(c: Client, bvid: str, limit: int = 10) -> list[dict]:
+    rows = c.get("/x/web-interface/archive/related", {"bvid": bvid}) or []
+    items = rows.get("list") if isinstance(rows, dict) else rows
+    return [
+        {
+            "bvid": r.get("bvid"),
+            "title": r.get("title"),
+            "owner": (r.get("owner") or {}).get("name", ""),
+            "view": _int((r.get("stat") or {}).get("view")),
+        }
+        for r in (items or [])[:limit]
+    ]
+
+
+def parts(c: Client, bvid: str) -> list[dict]:
+    info = c.get("/x/web-interface/view", {"bvid": bvid})
+    return [
+        {"cid": p.get("cid"), "page": p.get("page"), "part": p.get("part", ""), "duration": p.get("duration")}
+        for p in (info.get("pages") or [])
+    ]
+
+
+def chapters(c: Client, bvid: str) -> list[dict]:
+    info = c.get("/x/web-interface/view", {"bvid": bvid})
+    player = c.get("/x/player/wbi/v2", {"bvid": bvid, "cid": info.get("cid")}, wbi=True)
+    points = player.get("view_points") or []
+    return [
+        {
+            "from": p.get("from"),
+            "to": p.get("to"),
+            "content": p.get("content", ""),
+            "img": p.get("img", ""),
+        }
+        for p in points
+    ]
+
+
+def danmaku(c: Client, bvid: str, limit: int = 200) -> list[dict]:
+    """弹幕以 XML 返回，标准库解析。"""
+    import xml.etree.ElementTree as ET
+
+    info = c.get("/x/web-interface/view", {"bvid": bvid})
+    cid = info.get("cid")
+    raw = c._open(f"https://api.bilibili.com/x/v1/dm/list.so?oid={cid}", c.headers())
+    try:
+        root = ET.fromstring(raw.decode("utf-8", "ignore"))
+    except ET.ParseError as exc:
+        raise NetworkError("弹幕解析失败") from exc
+    out = []
+    for d in root.findall("d")[:limit]:
+        attr = (d.get("p") or "").split(",")
+        out.append(
+            {
+                "time": float(attr[0]) if attr and attr[0] else 0.0,
+                "mode": int(attr[1]) if len(attr) > 1 else 0,
+                "text": d.text or "",
+            }
+        )
+    return out
 
 
 def _clean(text: str) -> str:

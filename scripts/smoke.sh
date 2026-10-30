@@ -15,20 +15,20 @@ check() {
   fi
 }
 
-check status        bcli status
-check whoami        bcli whoami
-check hot           bcli hot
-check rank          bcli rank
-check search        bcli search 影视飓风 -n 3
-check user          bcli user 946974
-check user-videos   bcli user-videos 946974 -n 3
-check video         bcli video BV1xrnz6gEVD
-check subtitle      bcli video BV1xrnz6gEVD -s
-check comments      bcli video BV1xrnz6gEVD -c
-check history       bcli history
-check favorites     bcli favorites
-check watch-later   bcli watch-later
-check feed          bcli feed
-check my-dynamics   bcli my-dynamics
+check status        bili status
+check whoami        bili whoami
+check hot           bili hot
+check rank          bili rank
+check search        bili search 影视飓风 -n 3
+check user          bili user 946974
+check user-videos   bili user-videos 946974 -n 3
+check video         bili video BV1xrnz6gEVD
+check subtitle      bili video BV1xrnz6gEVD -s
+check comments      bili video BV1xrnz6gEVD -c
+check history       bili history
+check favorites     bili favorites
+check watch-later   bili watch-later
+check feed          bili feed
+check my-dynamics   bili my-dynamics
 
 exit "$fail"

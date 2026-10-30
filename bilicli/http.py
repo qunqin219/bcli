@@ -84,8 +84,11 @@ class Client:
         now = time.time()
         if self._wbi and now - self._wbi_at < 3600:
             return self._wbi
-        payload = self.get("/x/web-interface/nav", auth_required=False)
-        wbi = payload.get("wbi_img") or {}
+        # /nav answers code -101 for anonymous callers but still carries wbi_img,
+        # so parse the raw response instead of going through get().
+        raw = self._open(f"{API}/x/web-interface/nav", self.headers())
+        payload = json.loads(raw)
+        wbi = (payload.get("data") or {}).get("wbi_img") or {}
         img = (wbi.get("img_url") or "").rsplit("/", 1)[-1].split(".")[0]
         sub = (wbi.get("sub_url") or "").rsplit("/", 1)[-1].split(".")[0]
         if not img or not sub:
@@ -114,30 +117,24 @@ class Client:
         req = urllib.request.Request(url, headers=headers)
         try:
             with urllib.request.urlopen(req, timeout=self.timeout) as resp:
-                return resp.read()
+                raw = resp.read()
+                encoding = (resp.headers.get("Content-Encoding") or "").lower()
+            if encoding == "gzip":
+                import gzip
+                return gzip.decompress(raw)
+            if encoding == "deflate":
+                import zlib
+                try:
+                    return zlib.decompress(raw)
+                except zlib.error:
+                    return zlib.decompress(raw, -zlib.MAX_WBITS)
+            return raw
         except urllib.error.HTTPError as exc:
             raise NetworkError(f"HTTP {exc.code}: {url.split('?')[0]}") from exc
         except (urllib.error.URLError, TimeoutError) as exc:
             raise NetworkError(f"{exc}: {url.split('?')[0]}") from exc
 
-    def get(
-        self,
-        path: str,
-        params: dict[str, Any] | None = None,
-        *,
-        wbi: bool = False,
-        auth_required: bool = False,
-        referer: str = "https://www.bilibili.com/",
-        host: str = API,
-    ) -> dict[str, Any]:
-        if auth_required and not self.logged_in:
-            raise AuthError("not_authenticated", "请先运行 bcli login 登录")
-        params = params or {}
-        if wbi:
-            params = self.sign_wbi(params)
-        query = urllib.parse.urlencode(params)
-        url = f"{host}{path}" + (f"?{query}" if query else "")
-        raw = self._open(url, self.headers(referer))
+    def _parse(self, raw: bytes, path: str) -> Any:
         try:
             payload = json.loads(raw)
         except json.JSONDecodeError as exc:
@@ -154,7 +151,60 @@ class Client:
                 raise NotFoundError(code, message, path)
             raise ApiError(code, message, path)
         data = payload.get("data")
-        return data if isinstance(data, dict) else {}
+        return data if data is not None else {}
+
+    def get(
+        self,
+        path: str,
+        params: dict[str, Any] | None = None,
+        *,
+        wbi: bool = False,
+        auth_required: bool = False,
+        referer: str = "https://www.bilibili.com/",
+        host: str = API,
+    ) -> Any:
+        if auth_required and not self.logged_in:
+            raise AuthError("not_authenticated", "请先运行 bili login 登录")
+        params = params or {}
+        if wbi:
+            params = self.sign_wbi(params)
+        query = urllib.parse.urlencode(params)
+        url = f"{host}{path}" + (f"?{query}" if query else "")
+        return self._parse(self._open(url, self.headers(referer)), path)
+
+    def post(
+        self,
+        path: str,
+        data: dict[str, Any] | None = None,
+        *,
+        auth_required: bool = True,
+        referer: str = "https://www.bilibili.com/",
+    ) -> Any:
+        """Form POST with the CSRF token. Write endpoints all require bili_jct."""
+        if auth_required and not self.logged_in:
+            raise AuthError("not_authenticated", "请先运行 bili login 登录")
+        jct = self.cookies.get("bili_jct")
+        if not jct:
+            raise AuthError("missing_csrf", "缺少 bili_jct，请重新扫码登录")
+        body = dict(data or {})
+        body["csrf"] = jct
+        headers = self.headers(referer)
+        headers["Content-Type"] = "application/x-www-form-urlencoded"
+        headers["Origin"] = "https://www.bilibili.com"
+        req = urllib.request.Request(
+            f"{API}{path}",
+            data=urllib.parse.urlencode(body).encode(),
+            headers=headers,
+            method="POST",
+        )
+        try:
+            with urllib.request.urlopen(req, timeout=self.timeout) as resp:
+                raw = resp.read()
+        except urllib.error.HTTPError as exc:
+            raise NetworkError(f"HTTP {exc.code}: {path}") from exc
+        except (urllib.error.URLError, TimeoutError) as exc:
+            raise NetworkError(f"{exc}: {path}") from exc
+        return self._parse(raw, path)
 
     # -- media -----------------------------------------------------------
     def download(self, url: str, out_path: str) -> int:

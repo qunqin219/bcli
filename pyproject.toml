@@ -3,17 +3,40 @@ requires = ["setuptools>=68"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "bcli"
-version = "0.1.0"
-description = "A small, dependency-light Bilibili CLI with an agent-friendly envelope"
+name = "bilicli"
+version = "0.2.0"
+description = "A zero-dependency Bilibili CLI with a stable agent-friendly JSON envelope, QR login, subtitles, audio extraction and ASR"
+readme = "README.md"
+license = { file = "LICENSE" }
 requires-python = ">=3.11"
 dependencies = []
+keywords = ["bilibili", "cli", "video", "asr", "agent"]
+classifiers = [
+  "Environment :: Console",
+  "Intended Audience :: End Users/Desktop",
+  "License :: OSI Approved :: MIT License",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
+  "Topic :: Multimedia :: Video",
+]
+
+[project.urls]
+Homepage = "https://github.com/qunqin219/bcli"
+Issues = "https://github.com/qunqin219/bcli/issues"
+Changelog = "https://github.com/qunqin219/bcli/blob/master/CHANGELOG.md"
 
 [project.optional-dependencies]
 qr = ["qrcode>=7.4", "pillow>=10"]
+dev = ["build>=1.2", "setuptools>=68"]
 
 [project.scripts]
-bcli = "bcli.cli:main"
+bili = "bilicli.cli:main"
+bcli = "bilicli.cli:main"
 
 [tool.setuptools]
-packages = ["bcli"]
+packages = ["bilicli"]
+
+[tool.setuptools.package-data]
+bilicli = ["py.typed"]

@@ -37,8 +37,8 @@ def emit(payload: dict[str, Any], pretty: bool = False) -> None:
 
 
 def build_parser() -> argparse.ArgumentParser:
-    p = argparse.ArgumentParser(prog="bcli", description="bcli — 零依赖的 B 站命令行工具")
-    p.add_argument("--version", action="version", version=f"bcli {__version__}")
+    p = argparse.ArgumentParser(prog="bili", description="bili — 零依赖的 B 站命令行工具")
+    p.add_argument("--version", action="version", version=f"bili {__version__}")
     p.add_argument("--pretty", action="store_true", help="缩进输出 JSON")
     sub = p.add_subparsers(dest="command", required=True)
 
@@ -61,6 +61,11 @@ def build_parser() -> argparse.ArgumentParser:
     v.add_argument("bvid")
     v.add_argument("-s", "--subtitle", action="store_true")
     v.add_argument("-c", "--comments", action="store_true")
+    v.add_argument("--ai", action="store_true", help="AI 总结")
+    v.add_argument("--related", action="store_true", help="相关推荐")
+    v.add_argument("--parts", action="store_true", help="分 P 列表")
+    v.add_argument("--chapters", action="store_true", help="章节")
+    v.add_argument("--danmaku", action="store_true", help="弹幕")
 
     u = sub.add_parser("user", help="UP 主资料")
     u.add_argument("uid")
@@ -75,8 +80,45 @@ def build_parser() -> argparse.ArgumentParser:
     sub.add_parser("history", help="观看历史")
     sub.add_parser("favorites", help="收藏夹列表")
     sub.add_parser("watch-later", help="稍后再看")
-    sub.add_parser("feed", help="关注动态")
-    sub.add_parser("my-dynamics", help="我的动态")
+    f = sub.add_parser("feed", help="关注动态")
+    f.add_argument("--page", type=int, default=1)
+    f.add_argument("-n", "--limit", type=int, default=20)
+
+    md = sub.add_parser("my-dynamics", help="我的动态")
+    md.add_argument("--offset", default="")
+    md.add_argument("-n", "--limit", type=int, default=20)
+
+    fav = sub.add_parser("favorites-items", help="收藏夹内容")
+    fav.add_argument("folder_id")
+    fav.add_argument("--page", type=int, default=1)
+    fav.add_argument("-n", "--limit", type=int, default=20)
+
+    lk = sub.add_parser("like", help="点赞 / 取消点赞")
+    lk.add_argument("bvid")
+    lk.add_argument("--undo", action="store_true")
+
+    cn = sub.add_parser("coin", help="投币")
+    cn.add_argument("bvid")
+    cn.add_argument("-n", "--count", type=int, default=1, choices=[1, 2])
+    cn.add_argument("--also-like", action="store_true")
+
+    sub.add_parser("triple", help="一键三连").add_argument("bvid")
+
+    fo = sub.add_parser("follow", help="关注 / 取关")
+    fo.add_argument("uid")
+    fo.add_argument("--undo", action="store_true")
+
+    fa = sub.add_parser("fav-add", help="收藏到指定收藏夹")
+    fa.add_argument("bvid")
+    fa.add_argument("folder_id")
+
+    fr = sub.add_parser("fav-remove", help="从收藏夹移除")
+    fr.add_argument("bvid")
+    fr.add_argument("folder_id")
+
+    cm = sub.add_parser("comment", help="发表评论")
+    cm.add_argument("bvid")
+    cm.add_argument("message")
 
     a = sub.add_parser("audio", help="下载音频（可选切分为 16k WAV）")
     a.add_argument("bvid")
@@ -130,7 +172,19 @@ def run(args: argparse.Namespace) -> Any:
     if cmd == "search":
         return api.search(auth.client(), args.keyword, args.type, args.page, args.limit)
     if cmd == "video":
-        return api.video(auth.client(), api.bvid_of(args.bvid), args.subtitle, args.comments)
+        c, bvid = auth.client(), api.bvid_of(args.bvid)
+        data = api.video(c, bvid, args.subtitle, args.comments)
+        if args.ai:
+            data["ai"] = api.ai_summary(c, bvid)
+        if args.related:
+            data["related"] = api.related(c, bvid)
+        if args.parts:
+            data["parts"] = api.parts(c, bvid)
+        if args.chapters:
+            data["chapters"] = api.chapters(c, bvid)
+        if args.danmaku:
+            data["danmaku"] = api.danmaku(c, bvid)
+        return data
     if cmd == "user":
         return api.user(auth.client(), args.uid)
     if cmd == "user-videos":
@@ -146,9 +200,25 @@ def run(args: argparse.Namespace) -> Any:
     if cmd == "watch-later":
         return api.watch_later(auth.client())
     if cmd == "feed":
-        return api.dynamic_feed(auth.client())
+        return api.dynamic_feed(auth.client(), args.limit, args.page)
     if cmd == "my-dynamics":
-        return api.my_dynamics(auth.client())
+        return api.my_dynamics(auth.client(), args.limit, args.offset)
+    if cmd == "favorites-items":
+        return api.favorites_contents(auth.client(), args.folder_id, args.page, args.limit)
+    if cmd == "like":
+        return api.like(auth.client(), api.bvid_of(args.bvid), args.undo)
+    if cmd == "coin":
+        return api.coin(auth.client(), api.bvid_of(args.bvid), args.count, args.also_like)
+    if cmd == "triple":
+        return api.triple(auth.client(), api.bvid_of(args.bvid))
+    if cmd == "follow":
+        return api.follow(auth.client(), args.uid, args.undo)
+    if cmd == "fav-add":
+        return api.favorite_add(auth.client(), api.bvid_of(args.bvid), args.folder_id)
+    if cmd == "fav-remove":
+        return api.favorite_remove(auth.client(), api.bvid_of(args.bvid), args.folder_id)
+    if cmd == "comment":
+        return api.comment(auth.client(), api.bvid_of(args.bvid), args.message)
     if cmd == "audio":
         return api.audio(
             auth.client(),
