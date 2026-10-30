@@ -73,7 +73,7 @@ jobs:
       - name: Arrange assets
         run: |
           mkdir -p assets
-          cp artifacts/dist/* assets/
+          cp artifacts/dist/*.whl artifacts/dist/*.tar.gz assets/ 2>/dev/null || true
           find artifacts -name 'bili-*' -type f -exec cp {} assets/ \;
           ls -lh assets
       - name: Create GitHub Release
