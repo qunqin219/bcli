@@ -11,3 +11,5 @@ dist/
 .env
 credentials.json
 credential.json
+notes.md
+bili.rb
