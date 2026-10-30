@@ -181,6 +181,34 @@ class TestTable(unittest.TestCase):
         self.assertEqual(len(text.strip().splitlines()), 4)
 
 
+class TestBatchResolve(unittest.TestCase):
+    def test_kind_detection(self):
+        from bilicli.batch import _kind_of
+
+        self.assertEqual(_kind_of("BV1xrnz6gEVD")[0], "video")
+        self.assertEqual(_kind_of("https://www.bilibili.com/video/BV1xrnz6gEVD")[0], "video")
+        self.assertEqual(_kind_of("ep395211")[0], "bangumi")
+        self.assertEqual(_kind_of("https://www.bilibili.com/bangumi/play/ss38221")[0], "bangumi")
+        self.assertEqual(_kind_of("https://www.bilibili.com/cheese/play/ep6902")[0], "course")
+        self.assertEqual(_kind_of("https://space.bilibili.com/1/favlist?fid=2&ftype=create")[0], "fav")
+        self.assertEqual(_kind_of("https://space.bilibili.com/1/lists?sid=2&type=season")[0], "list")
+
+
+class TestAss(unittest.TestCase):
+    def test_convert_basic(self):
+        from bilicli.danmaku_ass import convert
+
+        xml = (
+            "<i><d p=\"1.5,1,25,16777215,0,0,0,0\">hello</d>"
+            "<d p=\"2.0,5,25,255,0,0,0,0\">top</d></i>"
+        )
+        ass = convert(xml)
+        self.assertIn("[Script Info]", ass)
+        self.assertEqual(ass.count("Dialogue:"), 2)
+        self.assertIn("hello", ass)
+        self.assertIn("\\an8", ass)
+
+
 class TestMcp(unittest.TestCase):
     def test_initialize_and_tools(self):
         from bilicli import mcp

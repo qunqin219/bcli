@@ -75,6 +75,11 @@ def build_tools() -> list[dict]:
             lambda a: _notifications(a),
         ),
     ]
+    tools += [
+        _tool("bili_login", "生成登录二维码；action=start 返回 base64 PNG，action=status 查询扫码结果",
+              {"action": {"type": "string", "enum": ["start", "status"]}},
+              lambda a: _login(a)),
+    ]
     if WRITE_TOOLS:
         tools += [
             _tool("bili_like", "点赞/取消点赞（写操作）",
@@ -104,6 +109,61 @@ def _comments(a: dict) -> dict:
 
     info = api.video(auth.client(), api.bvid_of(a["bvid"]))
     return social.comments(auth.client(), str(info["aid"]), "", a.get("limit", 20))
+
+
+_QR_SESSION: dict[str, Any] = {}
+
+
+def _login(a: dict) -> dict:
+    """Two-step QR login: start returns a base64 PNG, status polls the same key."""
+    import base64
+    import http.cookiejar
+    import io
+    import urllib.parse
+    import urllib.request
+
+    from .http import PASSPORT, UA
+
+    if a.get("action") == "start":
+        req = urllib.request.Request(
+            f"{PASSPORT}/x/passport-login/web/qrcode/generate",
+            headers={"User-Agent": UA},
+        )
+        data = json.loads(urllib.request.urlopen(req, timeout=20).read())["data"]
+        _QR_SESSION["key"] = data["qrcode_key"]
+        _QR_SESSION["jar"] = http.cookiejar.CookieJar()
+        png = b""
+        try:
+            import qrcode
+
+            buf = io.BytesIO()
+            qrcode.make(data["url"]).save(buf, format="PNG")
+            png = buf.getvalue()
+        except Exception:
+            png = b""
+        return {"qrcode_key": data["qrcode_key"], "url": data["url"], "png_base64": base64.b64encode(png).decode()}
+
+    key = _QR_SESSION.get("key")
+    if not key:
+        raise RuntimeError("先调用 action=start")
+    opener = urllib.request.build_opener(urllib.request.HTTPCookieProcessor(_QR_SESSION["jar"]))
+    query = urllib.parse.urlencode({"qrcode_key": key, "source": "main-fe-header"})
+    req = urllib.request.Request(f"{PASSPORT}/x/passport-login/web/qrcode/poll?{query}", headers={"User-Agent": UA})
+    data = json.loads(opener.open(req, timeout=20).read()).get("data") or {}
+    code = data.get("code")
+    if code == 0:
+        jar = {c.name: c.value for c in _QR_SESSION["jar"]}
+        from .auth import save_credential
+
+        save_credential({
+            "sessdata": jar.get("SESSDATA", ""),
+            "bili_jct": jar.get("bili_jct", ""),
+            "dedeuserid": jar.get("DedeUserID", ""),
+            "ac_time_value": data.get("refresh_token", ""),
+        })
+        _QR_SESSION.clear()
+        return {"status": "confirmed", "uid": jar.get("DedeUserID", "")}
+    return {"status": {86090: "scanned", 86038: "expired", 86101: "waiting"}.get(code, str(code))}
 
 
 def _bangumi(a: dict) -> dict:

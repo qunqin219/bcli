@@ -39,5 +39,7 @@ check notifications bili notifications
 check unread        bili unread
 check comments      bili comments BV1xrnz6gEVD -n 3
 check subtitle-srt  bili subtitle-srt BV1xrnz6gEVD
+check batch-list    bili batch BV1GxsX6YEuP --list
+check ass           bili danmaku-export BV1xrnz6gEVD --format ass -n 3
 
 exit "$fail"

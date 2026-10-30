@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.5.0
+
+- 批量下载 `batch`：视频/番剧/课程/收藏夹/合集/UP 空间，支持 `--list` 只解析
+- 弹幕转 ASS（`danmaku-export --format ass`）
+- `tui`：交互式 REPL，列表 + 按序号打开/下载
+- `import-cookies`：从 Firefox（Chrome 加密库则明确提示无法解密）
+- MCP 新增 `bili_login`（返回 base64 二维码 + 轮询状态）
+
 ## 0.4.1
 
 - 移除直播支持：删除 `live`、`live-danmaku`、直播搜索与对应 MCP 工具

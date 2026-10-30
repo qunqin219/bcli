@@ -36,6 +36,11 @@ bili comments BV1xxxxxxxxx --cursor 3 / bili reply BV1xxxxxxxxx "说点什么" /
 
 # 媒体
 bili download BV1xxxxxxxxx -o ./v --quality 80   # 合并为 mp4
+bili batch "https://space.bilibili.com/946974/lists?sid=2046621&type=season" -o ./v -n 5
+bili batch ep395211 --list          # 番剧剧集解析
+bili danmaku-export BV1xxxxxxxxx --format ass -o danmaku.ass
+bili tui                            # 交互式浏览
+bili import-cookies --browser firefox
 bili subtitle-srt BV1xxxxxxxxx -o a.srt
 bili danmaku-export BV1xxxxxxxxx --format txt
 

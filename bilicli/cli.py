@@ -217,7 +217,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     de = sub.add_parser("danmaku-export", help="导出弹幕")
     de.add_argument("bvid")
-    de.add_argument("--format", choices=["txt", "xml"], default="txt")
+    de.add_argument("--format", choices=["txt", "xml", "ass"], default="txt")
     de.add_argument("-n", "--limit", type=int, default=5000)
 
     dp = sub.add_parser("dynamic-post", help="发一条纯文本动态")
@@ -287,6 +287,19 @@ def build_parser() -> argparse.ArgumentParser:
 
     tl = sub.add_parser("timeline", help="番剧更新表")
     tl.add_argument("--day", type=int, default=1)
+
+    bt = sub.add_parser("batch", help="批量下载（视频/番剧/课程/收藏夹/合集/UP 空间）")
+    bt.add_argument("target", help="链接或 ID：BV/ep/ss/md/cheese/favlist/lists")
+    bt.add_argument("-o", "--output", type=Path, default=Path("."))
+    bt.add_argument("-n", "--limit", type=int, default=0, help="最多下载几个（0 表示全部）")
+    bt.add_argument("--quality", type=int, default=80)
+    bt.add_argument("--list", action="store_true", help="只解析并列出，不下载")
+
+    sub.add_parser("tui", help="交互式浏览（REPL）")
+
+    ic = sub.add_parser("import-cookies", help="从浏览器导入 cookie")
+    ic.add_argument("--browser", choices=["firefox", "chrome"], default="firefox")
+    ic.add_argument("--profile", default="", help="直接指定 cookie 数据库路径")
 
     qual = sub.add_parser("qualities", help="列出视频可用清晰度")
     qual.add_argument("bvid")
@@ -492,6 +505,23 @@ def run(args: argparse.Namespace) -> Any:
         from . import content
 
         return content.timeline(auth.client(), args.day)
+    if cmd == "batch":
+        from . import batch
+
+        c = auth.client()
+        resolved = batch.resolve(c, args.target, args.limit)
+        if args.list:
+            return resolved
+        result = batch.download_all(c, resolved["items"], args.output, args.quality)
+        return {"source": resolved["title"], "kind": resolved["kind"], **result}
+    if cmd == "tui":
+        from .tui import run as tui_run
+
+        raise SystemExit(tui_run())
+    if cmd == "import-cookies":
+        from . import cookies
+
+        return cookies.import_from(args.browser, args.profile)
     if cmd == "qualities":
         return api.video_qualities(auth.client(), api.bvid_of(args.bvid))
     if cmd == "hot":
@@ -523,6 +553,10 @@ def run(args: argparse.Namespace) -> Any:
             return media.download_video(c, bvid, args.output, args.quality, args.part, args.audio_only)
         if cmd == "subtitle-srt":
             return media.subtitle_srt(c, bvid, args.output, args.lang)
+        if args.format == "ass":
+            from .danmaku_ass import export as ass_export
+
+            return ass_export(c, bvid, args.limit)
         return media.danmaku_export(c, bvid, args.format, args.limit)
 
     if cmd in {"dynamic-post", "dynamic-delete", "fav-create", "fav-delete", "fav-rename",
