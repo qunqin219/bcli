@@ -52,7 +52,16 @@ def whoami(c: Client) -> dict[str, Any]:
     }
 
 
-def search(c: Client, keyword: str, kind: str = "video", page: int = 1, limit: int = 20) -> list[dict]:
+def search(
+    c: Client,
+    keyword: str,
+    kind: str = "video",
+    page: int = 1,
+    limit: int = 20,
+    order: str = "totalrank",
+    duration: int = 0,
+    tids: int = 0,
+) -> list[dict]:
     payload = c.get(
         "/x/web-interface/wbi/search/type",
         {
@@ -60,6 +69,9 @@ def search(c: Client, keyword: str, kind: str = "video", page: int = 1, limit: i
             "keyword": keyword,
             "page": page,
             "page_size": min(max(limit, 1), 50),
+            "order": order,
+            "duration": duration,
+            "tids": tids,
         },
         wbi=True,
     )
@@ -182,10 +194,10 @@ def user(c: Client, uid: str) -> dict[str, Any]:
     }
 
 
-def user_videos(c: Client, uid: str, page: int = 1, limit: int = 20) -> list[dict]:
+def user_videos(c: Client, uid: str, page: int = 1, limit: int = 20, order: str = "pubdate") -> list[dict]:
     payload = c.get(
         "/x/space/wbi/arc/search",
-        {"mid": uid, "pn": page, "ps": min(limit, 50), "order": "pubdate"},
+        {"mid": uid, "pn": page, "ps": min(limit, 50), "order": order},
         wbi=True,
         referer=f"https://space.bilibili.com/{uid}/video",
     )
@@ -216,8 +228,8 @@ def hot(c: Client, limit: int = 20) -> list[dict]:
     ]
 
 
-def rank(c: Client, limit: int = 20) -> list[dict]:
-    rows = (c.get("/x/web-interface/ranking/v2", {"rid": 0, "type": "all"}) or {}).get("list") or []
+def rank(c: Client, limit: int = 20, rid: int = 0) -> list[dict]:
+    rows = (c.get("/x/web-interface/ranking/v2", {"rid": rid, "type": "all"}) or {}).get("list") or []
     return [
         {
             "bvid": r.get("bvid"),
@@ -238,6 +250,7 @@ def history(c: Client, limit: int = 30) -> list[dict]:
             "title": r.get("title", ""),
             "author": r.get("author_name", ""),
             "bvid": ((r.get("history") or {}).get("bvid") or ""),
+            "kid": str(((r.get("history") or {}).get("oid") or r.get("kid") or "")),
             "viewed_at": r.get("view_at", 0),
             "progress": r.get("progress", 0),
         }
@@ -552,3 +565,64 @@ def danmaku(c: Client, bvid: str, limit: int = 200) -> list[dict]:
 
 def _clean(text: str) -> str:
     return re.sub(r"<[^>]+>", "", text or "")
+
+
+# --------------------------------------------------------------------------
+# more writes: dynamics, favorites management, watch later, history
+# --------------------------------------------------------------------------
+def dynamic_post(c: Client, text: str) -> dict[str, Any]:
+    import json
+
+    dyn_req = {
+        "dyn_req": {
+            "content": {"contents": [{"raw_text": text, "type": 1, "biz_id": ""}]},
+            "scene": 1,
+        }
+    }
+    data = c.post("/x/dynamic/feed/create/dyn", {"dyn_req": json.dumps(dyn_req, ensure_ascii=False)})
+    return {"dynamic_id": str((data.get("dyn_id_str") or data.get("dyn_id") or ""))}
+
+
+def dynamic_delete(c: Client, dynamic_id: str) -> dict[str, Any]:
+    c.post("/x/dynamic/feed/operate/remove", {"dynamic_id": dynamic_id})
+    return {"dynamic_id": dynamic_id, "deleted": True}
+
+
+def favorite_create(c: Client, title: str, private: bool = False) -> dict[str, Any]:
+    data = c.post("/x/v3/fav/folder/add", {"title": title, "privacy": 1 if private else 0})
+    return {"id": str(data.get("id", "")), "title": title, "private": private}
+
+
+def favorite_delete(c: Client, folder_id: str) -> dict[str, Any]:
+    c.post("/x/v3/fav/folder/del", {"media_ids": folder_id})
+    return {"id": folder_id, "deleted": True}
+
+
+def favorite_rename(c: Client, folder_id: str, title: str, private: bool | None = None) -> dict[str, Any]:
+    payload: dict[str, Any] = {"media_id": folder_id, "title": title}
+    if private is not None:
+        payload["privacy"] = 1 if private else 0
+    c.post("/x/v3/fav/folder/edit", payload)
+    return {"id": folder_id, "title": title}
+
+
+def watch_later_add(c: Client, bvid: str) -> dict[str, Any]:
+    aid = c.get("/x/web-interface/view", {"bvid": bvid}).get("aid")
+    c.post("/x/v2/history/toview/add", {"aid": aid})
+    return {"bvid": bvid, "added": True}
+
+
+def watch_later_remove(c: Client, bvid: str) -> dict[str, Any]:
+    aid = c.get("/x/web-interface/view", {"bvid": bvid}).get("aid")
+    c.post("/x/v2/history/toview/del", {"aid": aid})
+    return {"bvid": bvid, "removed": True}
+
+
+def history_delete(c: Client, kid: str) -> dict[str, Any]:
+    c.post("/x/v2/history/delete", {"kid": kid})
+    return {"kid": kid, "deleted": True}
+
+
+def history_clear(c: Client) -> dict[str, Any]:
+    c.post("/x/v2/history/clear", {})
+    return {"cleared": True}

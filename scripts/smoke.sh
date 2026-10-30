@@ -30,5 +30,15 @@ check favorites     bili favorites
 check watch-later   bili watch-later
 check feed          bili feed
 check my-dynamics   bili my-dynamics
+check doctor        bili doctor
+check bangumi       bili bangumi 33378
+check bangumi-rank  bili bangumi-rank -n 3
+check live          bili live 6
+check user-articles bili user-articles 946974 -n 2
+check collections   bili collections 946974 -n 2
+check notifications bili notifications
+check unread        bili unread
+check comments      bili comments BV1xrnz6gEVD -n 3
+check subtitle-srt  bili subtitle-srt BV1xrnz6gEVD
 
 exit "$fail"

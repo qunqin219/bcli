@@ -34,25 +34,27 @@ def main(paths: list[str]) -> int:
     )
     load_seconds = round(time.time() - started, 2)
 
+    # One batched call: funasr splits by batch_size_s, which is faster than
+    # running the model per file.
+    t0 = time.time()
+    outputs = model.generate(input=list(paths), cache={}, language="auto", use_itn=True, batch_size_s=120)
+    elapsed = max(time.time() - t0, 0.001)
     results = []
-    for path in paths:
-        t0 = time.time()
-        out = model.generate(input=path, cache={}, language="auto", use_itn=True, batch_size_s=60)
-        text = TAG_RE.sub("", out[0].get("text", "")).strip() if out else ""
-        tags = re.findall(r"<\|([^|]*)\|>", out[0].get("text", "")) if out else []
+    for path, out in zip(paths, outputs):
+        raw = out.get("text", "") if isinstance(out, dict) else ""
+        tags = re.findall(r"<\|([^|]*)\|>", raw)
         results.append(
             {
                 "file": path,
-                "text": text,
+                "text": TAG_RE.sub("", raw).strip(),
                 "language": tags[0] if tags else "",
                 "emotion": tags[1] if len(tags) > 1 else "",
-                "seconds": round(time.time() - t0, 2),
             }
         )
 
     print(
         json.dumps(
-            {"ok": True, "schema_version": "1", "data": {"model": model_dir, "load_seconds": load_seconds, "items": results}},
+            {"ok": True, "schema_version": "1", "data": {"model": model_dir, "load_seconds": load_seconds, "transcribe_seconds": round(elapsed, 2), "items": results}},
             ensure_ascii=False,
         )
     )

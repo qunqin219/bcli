@@ -23,8 +23,36 @@ bili follow 946974 / bili follow 946974 --undo
 bili fav-add BV1xxxxxxxxx 4425429009 / bili fav-remove BV1xxxxxxxxx 4425429009
 bili comment BV1xxxxxxxxx "说点什么"
 bili audio BV1xxxxxxxxx -o ./a --segment 300   # 切 16k 单声道 WAV
-bili asr BV1xxxxxxxxx --keep-audio             # 下载 + 切分 + SenseVoice 转写
+bili asr BV1xxxxxxxxx --keep-audio --srt a.srt # 转写并可导出 SRT
+
+# 更多内容类型
+bili bangumi 33378 / bili bangumi-rank / bili live 6
+bili article 45123193 / bili user-articles 946974 / bili collections 946974
+
+# 社交
+bili notifications --kind reply / bili unread
+bili followings 946974 / bili fans 946974
+bili comments BV1xxxxxxxxx --cursor 3 / bili reply BV1xxxxxxxxx "说点什么" / bili like-comment BV1xxxxxxxxx 12345
+
+# 媒体
+bili download BV1xxxxxxxxx -o ./v --quality 80   # 合并为 mp4
+bili subtitle-srt BV1xxxxxxxxx -o a.srt
+bili danmaku-export BV1xxxxxxxxx --format txt
+
+# 账号管理
+bili fav-create "新收藏夹" / bili fav-rename 123 "改名" / bili fav-delete 123
+bili later-add BV1xxxxxxxxx / bili later-del BV1xxxxxxxxx
+bili history-del <kid> / bili history-clear
+bili dynamic-post "纯文本动态" / bili dynamic-delete <id>
+
+# 工具
+bili doctor            # 环境自检
+bili mcp               # 以 MCP server 方式运行（stdio）
+bili completion bash > /etc/bash_completion.d/bili
 ```
+
+全局输出控制：`--json`（默认）、`--yaml`、`--fields name,uid`、`--pretty`。
+多账号：环境变量 `BCLI_PROFILE=work`，或 `bili login --profile work`。
 
 ## 安装
 

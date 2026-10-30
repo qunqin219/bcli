@@ -1,5 +1,20 @@
 # Changelog
 
+## 0.3.0
+
+- 新增内容类型：番剧（`bangumi` / `bangumi-rank`）、直播（`live`）、专栏（`article` /
+  `user-articles`）、合集与系列（`collections`）
+- 新增社交能力：消息中心（`notifications` / `unread`）、关注与粉丝列表、评论翻页、
+  回复评论、评论点赞
+- 新增媒体能力：`download`（DASH 音视频合并为 mp4，可选清晰度）、`subtitle-srt`、
+  `danmaku-export`
+- 新增账号管理：收藏夹增删改、稍后再看加入/移除、历史删除/清空、发/删动态
+- 搜索支持排序、时长、分区过滤；`rank --rid` 按分区；`user-videos --order`
+- ASR 支持批量转写与 `--srt` 导出
+- 新增 `bili mcp`：16 个只读工具，stdio JSON-RPC，可直接挂到 Claude Code / Codex
+- 新增 `bili doctor` 环境自检、`bili completion` shell 补全
+- 全局 `--yaml` / `--fields` 输出控制；多账号 `BCLI_PROFILE` 与 `login --profile`
+
 ## 0.2.3
 
 - 发布产物新增 `checksums.txt`，用户可自行校验下载的二进制

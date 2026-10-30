@@ -190,7 +190,10 @@ class Client:
             if code in (-404, 62002, 62004):
                 raise NotFoundError(code, message, path)
             raise ApiError(code, message, path)
+        # Most endpoints use "data"; the PGC/bangumi family uses "result".
         data = payload.get("data")
+        if data is None:
+            data = payload.get("result")
         return data if data is not None else {}
 
     def get(

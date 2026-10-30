@@ -149,6 +149,48 @@ class TestWrites(unittest.TestCase):
             c.post("/x/test", {"a": 1})
 
 
+class TestFormat(unittest.TestCase):
+    def test_yaml_roundtrip_shape(self):
+        from bilicli.format import to_yaml
+
+        text = to_yaml({"a": 1, "b": ["x", "y"], "c": {"d": True}})
+        self.assertIn("a: 1", text)
+        self.assertIn("- x", text)
+        self.assertIn("d: true", text)
+
+    def test_yaml_quotes_unsafe_strings(self):
+        from bilicli.format import to_yaml
+
+        self.assertIn('"a: b"', to_yaml({"k": "a: b"}))
+
+    def test_pick_fields(self):
+        from bilicli.format import pick
+
+        data = [{"a": 1, "b": 2}, {"a": 3, "b": 4}]
+        self.assertEqual(pick(data, ["a"]), [{"a": 1}, {"a": 3}])
+        self.assertEqual(pick({"a": 1, "b": 2}, []), {"a": 1, "b": 2})
+
+
+class TestMcp(unittest.TestCase):
+    def test_initialize_and_tools(self):
+        from bilicli import mcp
+
+        tools = {t["name"]: t for t in mcp.build_tools()}
+        init = mcp.handle({"jsonrpc": "2.0", "id": 1, "method": "initialize"}, tools)
+        self.assertEqual(init["result"]["serverInfo"]["name"], "bili")
+        listing = mcp.handle({"jsonrpc": "2.0", "id": 2, "method": "tools/list"}, tools)
+        names = {t["name"] for t in listing["result"]["tools"]}
+        self.assertIn("bili_hot", names)
+        self.assertTrue(all("inputSchema" in t for t in listing["result"]["tools"]))
+
+    def test_unknown_tool(self):
+        from bilicli import mcp
+
+        tools = {t["name"]: t for t in mcp.build_tools()}
+        resp = mcp.handle({"jsonrpc": "2.0", "id": 3, "method": "tools/call", "params": {"name": "nope"}}, tools)
+        self.assertIn("error", resp)
+
+
 class TestCliSurface(unittest.TestCase):
     def test_all_commands_registered(self):
         from bilicli.cli import build_parser

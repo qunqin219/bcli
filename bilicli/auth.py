@@ -14,7 +14,8 @@ from typing import Callable
 from .http import PASSPORT, UA, Client, NetworkError
 
 CONFIG_DIR = Path(os.environ.get("BCLI_CONFIG_DIR", Path.home() / ".config" / "bcli"))
-CREDENTIAL_FILE = CONFIG_DIR / "credential.json"
+PROFILE = os.environ.get("BCLI_PROFILE", "") or os.environ.get("BCLI_ACCOUNT", "")
+CREDENTIAL_FILE = CONFIG_DIR / (f"credential-{PROFILE}.json" if PROFILE else "credential.json")
 
 
 # --------------------------------------------------------------------------
@@ -37,7 +38,12 @@ def load_credential() -> dict[str, str]:
     return cred
 
 
-def save_credential(cred: dict[str, str]) -> Path:
+def credential_path(profile: str = "") -> Path:
+    name = profile or PROFILE
+    return CONFIG_DIR / (f"credential-{name}.json" if name else "credential.json")
+
+
+def save_credential(cred: dict[str, str], profile: str = "") -> Path:
     CONFIG_DIR.mkdir(parents=True, exist_ok=True)
     data = {
         "sessdata": cred.get("sessdata", ""),
@@ -46,9 +52,10 @@ def save_credential(cred: dict[str, str]) -> Path:
         "ac_time_value": cred.get("ac_time_value", ""),
         "saved_at": int(time.time()),
     }
-    CREDENTIAL_FILE.write_text(json.dumps(data, indent=2))
-    CREDENTIAL_FILE.chmod(0o600)
-    return CREDENTIAL_FILE
+    target = credential_path(profile)
+    target.write_text(json.dumps(data, indent=2))
+    target.chmod(0o600)
+    return target
 
 
 def clear_credential() -> None:
@@ -90,6 +97,7 @@ def qr_login(
     png: Path | None = None,
     timeout: int = 280,
     on_state: Callable[[str], None] | None = None,
+    profile: str = "",
 ) -> dict[str, str]:
     """Generate a login QR, poll until confirmed, persist the cookie set.
 
@@ -135,7 +143,7 @@ def qr_login(
             }
             if not cred["sessdata"]:
                 raise NetworkError("登录成功但未取到 SESSDATA")
-            save_credential(cred)
+            save_credential(cred, profile)
             return cred
         if code == 86038:
             raise NetworkError("二维码已过期，请重新运行 bcli login")

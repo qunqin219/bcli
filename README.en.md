@@ -21,7 +21,22 @@ bili history / favorites / favorites-items / watch-later / feed / my-dynamics
 bili audio BV1xxxxxxxxx -o ./a --segment 300
 bili asr BV1xxxxxxxxx --keep-audio
 bili update --check / bili update
+
+# more content types / social / media
+bili bangumi 33378 / bili live 6 / bili article 45123193 / bili collections 946974
+bili notifications --kind reply / bili unread / bili followings 946974
+bili comments BV1xxxxxxxxx --cursor 3
+bili download BV1xxxxxxxxx --quality 80 / bili subtitle-srt BV1xxxxxxxxx -o a.srt
+bili danmaku-export BV1xxxxxxxxx
+
+# tooling
+bili doctor            # self-diagnosis
+bili mcp               # run as an MCP server over stdio
+bili completion bash
 ```
+
+Global output flags: `--yaml`, `--fields name,uid`, `--pretty`.
+Multiple accounts: `BCLI_PROFILE=work` or `bili login --profile work`.
 
 ## Install
 

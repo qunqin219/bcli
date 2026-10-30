@@ -40,14 +40,18 @@ def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(prog="bili", description="bili — 零依赖的 B 站命令行工具")
     p.add_argument("--version", action="version", version=f"bili {__version__}")
     p.add_argument("--pretty", action="store_true", help="缩进输出 JSON")
+    p.add_argument("--yaml", action="store_true", help="以 YAML 输出")
+    p.add_argument("--fields", default="", help="逗号分隔，只保留这些字段")
     sub = p.add_subparsers(dest="command", required=True)
 
     sub.add_parser("status", help="登录状态")
+    sub.add_parser("doctor", help="环境自检")
     sub.add_parser("whoami", help="当前账号信息")
 
     login = sub.add_parser("login", help="扫码登录")
     login.add_argument("--png", type=Path, default=None, help="把二维码另存为 PNG")
     login.add_argument("--timeout", type=int, default=280)
+    login.add_argument("--profile", default="", help="多账号：保存为 credential-<profile>.json")
 
     sub.add_parser("logout", help="清除本地凭证")
 
@@ -56,6 +60,11 @@ def build_parser() -> argparse.ArgumentParser:
     s.add_argument("--type", choices=["video", "user"], default="video")
     s.add_argument("-n", "--limit", type=int, default=20)
     s.add_argument("--page", type=int, default=1)
+    s.add_argument("--order", default="totalrank",
+                   choices=["totalrank", "click", "pubdate", "dm", "stow", "scores"])
+    s.add_argument("--duration", type=int, default=0, choices=[0, 1, 2, 3, 4],
+                   help="0 全部 1 <10min 2 10-30min 3 30-60min 4 >60min")
+    s.add_argument("--tids", type=int, default=0, help="分区 id，0 为全部")
 
     v = sub.add_parser("video", help="视频详情")
     v.add_argument("bvid")
@@ -74,9 +83,11 @@ def build_parser() -> argparse.ArgumentParser:
     uv.add_argument("uid")
     uv.add_argument("-n", "--limit", type=int, default=20)
     uv.add_argument("--page", type=int, default=1)
+    uv.add_argument("--order", default="pubdate", choices=["pubdate", "click", "stow"])
 
     sub.add_parser("hot", help="热门")
-    sub.add_parser("rank", help="排行榜")
+    rk = sub.add_parser("rank", help="排行榜")
+    rk.add_argument("--rid", type=int, default=0, help="分区 id，0 为全站")
     sub.add_parser("history", help="观看历史")
     sub.add_parser("favorites", help="收藏夹列表")
     sub.add_parser("watch-later", help="稍后再看")
@@ -132,6 +143,115 @@ def build_parser() -> argparse.ArgumentParser:
     s_asr.add_argument("--segment", type=int, default=300)
     s_asr.add_argument("--model", default=None, help="SenseVoice 模型目录")
     s_asr.add_argument("--keep-audio", action="store_true", help="保留切分后的 WAV")
+    s_asr.add_argument("--srt", type=Path, default=None, help="同时导出 SRT（按分段时长估算时间轴）")
+
+    bg = sub.add_parser("bangumi", help="番剧/影视信息")
+    bg.add_argument("season_id")
+    bg.add_argument("--ep", action="store_true", help="把参数当作 ep_id")
+
+    bgr = sub.add_parser("bangumi-rank", help="番剧排行")
+    bgr.add_argument("--season-type", type=int, default=1)
+    bgr.add_argument("--day", type=int, default=3)
+    bgr.add_argument("-n", "--limit", type=int, default=20)
+
+    lv = sub.add_parser("live", help="直播间信息")
+    lv.add_argument("room_id")
+
+    ar = sub.add_parser("article", help="专栏文章")
+    ar.add_argument("cvid")
+
+    ua = sub.add_parser("user-articles", help="UP 主专栏")
+    ua.add_argument("mid")
+    ua.add_argument("--page", type=int, default=1)
+    ua.add_argument("-n", "--limit", type=int, default=20)
+
+    cl = sub.add_parser("collections", help="合集 / 系列")
+    cl.add_argument("mid")
+    cl.add_argument("--page", type=int, default=1)
+    cl.add_argument("-n", "--limit", type=int, default=10)
+
+    nt = sub.add_parser("notifications", help="消息中心")
+    nt.add_argument("--kind", choices=["reply", "at", "like"], default="reply")
+    nt.add_argument("--page", type=int, default=1)
+    nt.add_argument("-n", "--limit", type=int, default=20)
+
+    sub.add_parser("unread", help="未读消息数")
+
+    fw = sub.add_parser("followings", help="关注列表")
+    fw.add_argument("uid")
+    fw.add_argument("--page", type=int, default=1)
+    fw.add_argument("-n", "--limit", type=int, default=20)
+
+    fn = sub.add_parser("fans", help="粉丝列表")
+    fn.add_argument("uid")
+    fn.add_argument("--page", type=int, default=1)
+    fn.add_argument("-n", "--limit", type=int, default=20)
+
+    cm = sub.add_parser("comments", help="视频评论（可翻页）")
+    cm.add_argument("bvid")
+    cm.add_argument("--cursor", default="")
+    cm.add_argument("-n", "--limit", type=int, default=20)
+
+    rp = sub.add_parser("reply", help="回复评论 / 发评论")
+    rp.add_argument("bvid")
+    rp.add_argument("message")
+    rp.add_argument("--root", default="")
+    rp.add_argument("--parent", default="")
+
+    lc = sub.add_parser("like-comment", help="给评论点赞")
+    lc.add_argument("bvid")
+    lc.add_argument("rpid")
+    lc.add_argument("--undo", action="store_true")
+
+    dl = sub.add_parser("download", help="下载视频（DASH 合并为 mp4）")
+    dl.add_argument("bvid")
+    dl.add_argument("-o", "--output", type=Path, default=Path("."))
+    dl.add_argument("--quality", type=int, default=80, help="80=1080P 64=720P 32=480P 16=360P")
+
+    ss = sub.add_parser("subtitle-srt", help="导出字幕为 SRT")
+    ss.add_argument("bvid")
+    ss.add_argument("-o", "--output", type=Path, default=None)
+    ss.add_argument("--lang", default="")
+
+    de = sub.add_parser("danmaku-export", help="导出弹幕")
+    de.add_argument("bvid")
+    de.add_argument("--format", choices=["txt", "xml"], default="txt")
+    de.add_argument("-n", "--limit", type=int, default=5000)
+
+    dp = sub.add_parser("dynamic-post", help="发一条纯文本动态")
+    dp.add_argument("text")
+
+    dd = sub.add_parser("dynamic-delete", help="删除动态")
+    dd.add_argument("dynamic_id")
+
+    fc = sub.add_parser("fav-create", help="新建收藏夹")
+    fc.add_argument("title")
+    fc.add_argument("--private", action="store_true")
+
+    fd = sub.add_parser("fav-delete", help="删除收藏夹")
+    fd.add_argument("folder_id")
+
+    frn = sub.add_parser("fav-rename", help="重命名收藏夹")
+    frn.add_argument("folder_id")
+    frn.add_argument("title")
+    frn.add_argument("--private", action="store_true")
+    frn.add_argument("--public", action="store_true")
+
+    la = sub.add_parser("later-add", help="加入稍后再看")
+    la.add_argument("bvid")
+
+    ld = sub.add_parser("later-del", help="移出稍后再看")
+    ld.add_argument("bvid")
+
+    hd = sub.add_parser("history-del", help="删除一条观看历史")
+    hd.add_argument("kid")
+
+    sub.add_parser("history-clear", help="清空观看历史")
+
+    sub.add_parser("mcp", help="以 MCP server 方式运行（stdio）")
+
+    comp = sub.add_parser("completion", help="生成 shell 补全脚本")
+    comp.add_argument("shell", choices=["bash", "zsh", "fish"])
 
     up = sub.add_parser("update", help="检查 / 安装新版本")
     up.add_argument("--check", action="store_true", help="只检查，不安装")
@@ -146,6 +266,16 @@ def build_parser() -> argparse.ArgumentParser:
 
 def run(args: argparse.Namespace) -> Any:
     cmd = args.command
+    if cmd == "doctor":
+        from . import doctor
+
+        return doctor.run()
+    if cmd == "mcp":
+        from .mcp import serve
+
+        raise SystemExit(serve())
+    if cmd == "completion":
+        return {"script": completion_script(args.shell)}
     if cmd == "status":
         cred = auth.load_credential()
         c = auth.client()
@@ -157,6 +287,7 @@ def run(args: argparse.Namespace) -> Any:
                 info = None
         return {
             "authenticated": info is not None,
+            "profile": auth.PROFILE or "default",
             "credential_file": str(auth.CREDENTIAL_FILE),
             "has_sessdata": bool(cred.get("sessdata")),
             "user": info,
@@ -167,13 +298,16 @@ def run(args: argparse.Namespace) -> Any:
         def state(s: str) -> None:
             print(f"[login] {s}", file=sys.stderr, flush=True)
 
-        cred = auth.qr_login(png=args.png, timeout=args.timeout, on_state=state)
-        return {"logged_in": True, "uid": cred.get("dedeuserid", "")}
+        cred = auth.qr_login(png=args.png, timeout=args.timeout, on_state=state, profile=args.profile)
+        return {"logged_in": True, "profile": args.profile or "default", "uid": cred.get("dedeuserid", "")}
     if cmd == "logout":
         auth.clear_credential()
         return {"logged_out": True}
     if cmd == "search":
-        return api.search(auth.client(), args.keyword, args.type, args.page, args.limit)
+        return api.search(
+            auth.client(), args.keyword, args.type, args.page, args.limit,
+            args.order, args.duration, args.tids,
+        )
     if cmd == "video":
         c, bvid = auth.client(), api.bvid_of(args.bvid)
         data = api.video(c, bvid, args.subtitle, args.comments)
@@ -191,11 +325,11 @@ def run(args: argparse.Namespace) -> Any:
     if cmd == "user":
         return api.user(auth.client(), args.uid)
     if cmd == "user-videos":
-        return api.user_videos(auth.client(), args.uid, args.page, args.limit)
+        return api.user_videos(auth.client(), args.uid, args.page, args.limit, args.order)
     if cmd == "hot":
         return api.hot(auth.client())
     if cmd == "rank":
-        return api.rank(auth.client())
+        return api.rank(auth.client(), rid=args.rid)
     if cmd == "history":
         return api.history(auth.client())
     if cmd == "favorites":
@@ -244,6 +378,17 @@ def run(args: argparse.Namespace) -> Any:
             paths = [target]
             meta = {"file": target}
         result = api.transcribe(paths, model=args.model)
+        if args.srt:
+            from .media import _srt_time
+
+            cues = []
+            for idx, item in enumerate(result.get("items") or [], 1):
+                start = (idx - 1) * args.segment
+                cues.append(
+                    f"{idx}\n{_srt_time(start)} --> {_srt_time(start + args.segment)}\n{item.get('text', '')}\n"
+                )
+            args.srt.write_text("\n".join(cues), encoding="utf-8")
+            result["srt"] = str(args.srt)
         if not args.keep_audio and api.BVID_RE.search(target):
             for p in paths:
                 Path(p).unlink(missing_ok=True)
@@ -252,6 +397,74 @@ def run(args: argparse.Namespace) -> Any:
         from . import update
 
         return update.check() if args.check else update.perform_update()
+    if cmd in {"bangumi", "bangumi-rank", "live", "article", "user-articles", "collections"}:
+        from . import content
+
+        c = auth.client()
+        if cmd == "bangumi":
+            return content.bangumi(c, ep_id=args.season_id if args.ep else None,
+                                   season_id=None if args.ep else args.season_id)
+        if cmd == "bangumi-rank":
+            return content.bangumi_rank(c, args.season_type, args.day, args.limit)
+        if cmd == "live":
+            return content.live_room(c, args.room_id)
+        if cmd == "article":
+            return content.article(c, args.cvid)
+        if cmd == "user-articles":
+            return content.user_articles(c, args.mid, args.page, args.limit)
+        return content.collections(c, args.mid, args.page, args.limit)
+
+    if cmd in {"notifications", "unread", "followings", "fans", "comments", "reply", "like-comment"}:
+        from . import social
+
+        c = auth.client()
+        if cmd == "notifications":
+            return social.messages(c, args.kind, args.page, args.limit)
+        if cmd == "unread":
+            return social.unread(c)
+        if cmd == "followings":
+            return social.followings(c, args.uid, args.page, args.limit)
+        if cmd == "fans":
+            return social.fans(c, args.uid, args.page, args.limit)
+        if cmd == "comments":
+            return social.comments(c, api.video(c, api.bvid_of(args.bvid))["aid"], args.cursor, args.limit)
+        if cmd == "reply":
+            return social.reply_comment(c, api.bvid_of(args.bvid), args.message, args.root, args.parent)
+        return social.like_comment(c, api.bvid_of(args.bvid), args.rpid, args.undo)
+
+    if cmd in {"download", "subtitle-srt", "danmaku-export"}:
+        from . import media
+
+        c = auth.client()
+        bvid = api.bvid_of(args.bvid)
+        if cmd == "download":
+            return media.download_video(c, bvid, args.output, args.quality)
+        if cmd == "subtitle-srt":
+            return media.subtitle_srt(c, bvid, args.output, args.lang)
+        return media.danmaku_export(c, bvid, args.format, args.limit)
+
+    if cmd in {"dynamic-post", "dynamic-delete", "fav-create", "fav-delete", "fav-rename",
+               "later-add", "later-del", "history-del", "history-clear"}:
+        c = auth.client()
+        if cmd == "dynamic-post":
+            return api.dynamic_post(c, args.text)
+        if cmd == "dynamic-delete":
+            return api.dynamic_delete(c, args.dynamic_id)
+        if cmd == "fav-create":
+            return api.favorite_create(c, args.title, args.private)
+        if cmd == "fav-delete":
+            return api.favorite_delete(c, args.folder_id)
+        if cmd == "fav-rename":
+            private = True if args.private else (False if args.public else None)
+            return api.favorite_rename(c, args.folder_id, args.title, private)
+        if cmd == "later-add":
+            return api.watch_later_add(c, api.bvid_of(args.bvid))
+        if cmd == "later-del":
+            return api.watch_later_remove(c, api.bvid_of(args.bvid))
+        if cmd == "history-del":
+            return api.history_delete(c, args.kid)
+        return api.history_clear(c)
+
     if cmd == "api":
         params = {}
         for item in args.param:
@@ -270,11 +483,47 @@ def _ensure_utf8() -> None:
             pass
 
 
+def completion_script(shell: str) -> str:
+    parser = build_parser()
+    names = " ".join(sorted(next(a for a in parser._actions if a.dest == "command").choices))
+    if shell == "bash":
+        return f"""_bili_complete() {{
+  local cur="${{COMP_WORDS[COMP_CWORD]}}"
+  if [ "$COMP_CWORD" -eq 1 ]; then
+    COMPREPLY=( $(compgen -W "{names}" -- "$cur") )
+  fi
+}}
+complete -F _bili_complete bili bcli
+"""
+    if shell == "zsh":
+        return f"""#compdef bili bcli
+_bili() {{
+  local -a commands
+  commands=({names})
+  _describe 'command' commands
+}}
+_bili "$@"
+"""
+    return f"""complete -c bili -n '__fish_use_subcommand' -a '{names}'
+complete -c bcli -n '__fish_use_subcommand' -a '{names}'
+"""
+
+
 def main(argv: list[str] | None = None) -> int:
     _ensure_utf8()
     args = build_parser().parse_args(argv)
     try:
-        emit(Envelope.ok(run(args)), pretty=args.pretty)
+        data = run(args)
+        if getattr(args, "fields", ""):
+            from .format import pick
+
+            data = pick(data, [f.strip() for f in args.fields.split(",") if f.strip()])
+        if getattr(args, "yaml", False):
+            from .format import to_yaml
+
+            sys.stdout.write(to_yaml(data))
+        else:
+            emit(Envelope.ok(data), pretty=args.pretty)
         return EXIT_OK
     except AuthError as exc:
         emit(Envelope.err("not_authenticated", str(exc)), pretty=args.pretty)
