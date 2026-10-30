@@ -10,6 +10,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
+from . import config
 from .http import API, Client, NotFoundError
 
 BVID_RE = re.compile(r"BV[0-9A-Za-z]{10}")
@@ -368,16 +369,17 @@ def transcribe(paths: list[str], model: str | None = None, timeout: int = 1800) 
     import json
     import subprocess
 
-    python = os.environ.get("BCLI_ASR_PYTHON", "/root/venvs/sensevoice/bin/python")
-    worker = Path(os.environ.get("BCLI_ASR_WORKER", Path(__file__).resolve().parent.parent / "scripts" / "asr_worker.py"))
-    if not Path(python).exists():
-        raise FileNotFoundError(f"ASR 环境不存在: {python}（设置 BCLI_ASR_PYTHON）")
+    python = config.get("asr_python") or shutil.which("python3") or "python3"
+    worker = Path(config.get("asr_worker") or Path(__file__).resolve().parent.parent / "scripts" / "asr_worker.py")
+    if not Path(python).exists() and not shutil.which(str(python)):
+        raise FileNotFoundError(f"ASR 解释器不可用: {python}（设置 asr_python 或 BCLI_ASR_PYTHON）")
     if not worker.exists():
         raise FileNotFoundError(f"ASR worker 不存在: {worker}")
 
     env = dict(os.environ)
+    model = model or config.get("asr_model")
     if model:
-        env["BCLI_ASR_MODEL"] = model
+        env["BCLI_ASR_MODEL"] = str(model)
     proc = subprocess.run(
         [python, str(worker), *paths],
         capture_output=True,

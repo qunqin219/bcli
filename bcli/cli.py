@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 import json
 import sys
+import tempfile
 from pathlib import Path
 from typing import Any
 
@@ -159,7 +160,7 @@ def run(args: argparse.Namespace) -> Any:
     if cmd == "asr":
         target: str = args.target
         if api.BVID_RE.search(target):
-            out_dir = args.output or Path("/tmp/bcli-asr") / api.bvid_of(target)
+            out_dir = args.output or Path(tempfile.gettempdir()) / "bcli-asr" / api.bvid_of(target)
             audio_result = api.audio(
                 auth.client(), api.bvid_of(target), out_dir,
                 segment=args.segment, split=True,

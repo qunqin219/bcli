@@ -1,8 +1,8 @@
 """Transcribe audio files with SenseVoice-Small and print one JSON envelope.
 
 Run with the environment that has funasr + torch installed, e.g.:
-    /root/venvs/sensevoice/bin/python scripts/asr_worker.py a.wav b.wav
-Model directory: $BCLI_ASR_MODEL (default /root/models/SenseVoiceSmall)
+    /path/to/asr-env/bin/python scripts/asr_worker.py a.wav b.wav
+Model directory: $BCLI_ASR_MODEL (default ~/models/SenseVoiceSmall)
 """
 
 from __future__ import annotations
@@ -12,12 +12,13 @@ import os
 import re
 import sys
 import time
+from pathlib import Path
 
 TAG_RE = re.compile(r"<\|[^|]*\|>")
 
 
 def main(paths: list[str]) -> int:
-    model_dir = os.environ.get("BCLI_ASR_MODEL", "/root/models/SenseVoiceSmall")
+    model_dir = os.environ.get("BCLI_ASR_MODEL") or str(Path.home() / "models" / "SenseVoiceSmall")
     try:
         from funasr import AutoModel
     except ImportError as exc:
