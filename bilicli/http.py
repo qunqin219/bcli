@@ -9,6 +9,7 @@ import time
 import urllib.error
 import urllib.parse
 import urllib.request
+from pathlib import Path
 from typing import Any
 
 UA = (
@@ -72,6 +73,12 @@ class Client:
                 self.cookies["DedeUserID"] = credential["dedeuserid"]
         self.timeout = timeout
         self.retries = max(0, retries)
+        try:
+            self.rate = float(os.environ.get("BILI_RATE", "5"))
+        except ValueError:
+            self.rate = 5.0
+        self._last_request = 0.0
+        self.cache_ttl = int(os.environ.get("BILI_CACHE_TTL", "0"))
         self._wbi: tuple[str, str] | None = None
         self._wbi_at = 0.0
 
@@ -140,11 +147,33 @@ class Client:
         delay = min(0.5 * (2**attempt), 8) + random.uniform(0, 0.25)
         time.sleep(delay)
 
+    def _throttle(self) -> None:
+        if self.rate <= 0:
+            return
+        gap = 1.0 / self.rate
+        wait = self._last_request + gap - time.time()
+        if wait > 0:
+            time.sleep(wait)
+        self._last_request = time.time()
+
+    def _cache_path(self, url: str) -> Path:
+        import hashlib
+        import tempfile
+
+        root = Path(os.environ.get("BILI_CACHE_DIR", Path(tempfile.gettempdir()) / "bili-cache"))
+        root.mkdir(parents=True, exist_ok=True)
+        return root / (hashlib.md5(url.encode()).hexdigest() + ".cache")
+
     def _open(self, url: str, headers: dict[str, str], *, retries: int | None = None) -> bytes:
         """GET with bounded retries. Only safe because GET is idempotent."""
+        if self.cache_ttl > 0:
+            cached = self._cache_path(url)
+            if cached.exists() and time.time() - cached.stat().st_mtime < self.cache_ttl:
+                return cached.read_bytes()
         attempts = (self.retries if retries is None else retries) + 1
         last_error = ""
         for attempt in range(attempts):
+            self._throttle()
             req = urllib.request.Request(url, headers=headers)
             try:
                 with urllib.request.urlopen(req, timeout=self.timeout) as resp:
@@ -152,14 +181,21 @@ class Client:
                     encoding = (resp.headers.get("Content-Encoding") or "").lower()
                 if encoding == "gzip":
                     import gzip
-                    return gzip.decompress(raw)
-                if encoding == "deflate":
+                    data = gzip.decompress(raw)
+                elif encoding == "deflate":
                     import zlib
                     try:
-                        return zlib.decompress(raw)
+                        data = zlib.decompress(raw)
                     except zlib.error:
-                        return zlib.decompress(raw, -zlib.MAX_WBITS)
-                return raw
+                        data = zlib.decompress(raw, -zlib.MAX_WBITS)
+                else:
+                    data = raw
+                if self.cache_ttl > 0 and len(data) < 2_000_000:
+                    try:
+                        self._cache_path(url).write_bytes(data)
+                    except OSError:
+                        pass
+                return data
             except urllib.error.HTTPError as exc:
                 if exc.code in self.RETRY_STATUS and attempt < attempts - 1:
                     self._sleep_backoff(attempt, exc.headers.get("Retry-After"))

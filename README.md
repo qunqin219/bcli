@@ -45,13 +45,20 @@ bili later-add BV1xxxxxxxxx / bili later-del BV1xxxxxxxxx
 bili history-del <kid> / bili history-clear
 bili dynamic-post "纯文本动态" / bili dynamic-delete <id>
 
+# 直播 / 番剧 / 空间
+bili live-danmaku 7734200 --seconds 30   # 实时弹幕（匿名连接，实验性）
+bili timeline / bili bangumi-followed 946974 / bili bangumi-follow 33378
+bili user-dynamics 946974 / bili follow-tags 946974
+bili qualities BV1xxxxxxxxx / bili download BV1xxxxxxxxx --part 2 --audio-only
+
 # 工具
 bili doctor            # 环境自检
 bili mcp               # 以 MCP server 方式运行（stdio）
 bili completion bash > /etc/bash_completion.d/bili
 ```
 
-全局输出控制：`--json`（默认）、`--yaml`、`--fields name,uid`、`--pretty`。
+全局输出控制：`--json`（默认）、`--yaml`、`--table`、`--fields name,uid`、`--pretty`。
+限流与缓存：`BILI_RATE`（每秒请求数，默认 5）、`BILI_CACHE_TTL`（秒，默认关闭）。
 多账号：环境变量 `BCLI_PROFILE=work`，或 `bili login --profile work`。
 
 ## 安装

@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.4.0
+
+- 直播弹幕：`live-danmaku`（纯标准库 WebSocket，匿名连接，实验性）
+- 二级回复 `replies`、删评论 `comment-delete`
+- 任意 UP 主动态 `user-dynamics`、关注分组 `follow-tags` / `tag-members`
+- 追番列表/追番开关 `bangumi-followed` / `bangumi-follow`、番剧更新表 `timeline`
+- 视频清晰度列表 `qualities`；下载支持 `--part` 与 `--audio-only`
+- 搜索新增 article / live / bangumi；直播搜索走独立接口
+- `--table` 人类可读表格；客户端限流（`BILI_RATE`）与磁盘缓存（`BILI_CACHE_TTL`）
+- MCP 写入工具（`BILI_MCP_WRITE=1` 开启）：点赞、关注
+- Windows arm64 预编译二进制
+- 异常兜底：任何未预期异常都返回 `unexpected_error` 信封而不是 traceback
+
 ## 0.3.0
 
 - 新增内容类型：番剧（`bangumi` / `bangumi-rank`）、直播（`live`）、专栏（`article` /

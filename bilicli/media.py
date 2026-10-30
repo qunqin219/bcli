@@ -34,9 +34,22 @@ def pick_stream(streams: list[dict], target: int) -> dict:
     return max(pool, key=lambda s: (s["id"], s.get("bandwidth", 0)))
 
 
-def download_video(c: Client, bvid: str, out_dir: Path, quality: int = 80) -> dict[str, Any]:
+def download_video(
+    c: Client,
+    bvid: str,
+    out_dir: Path,
+    quality: int = 80,
+    part: int = 1,
+    audio_only: bool = False,
+) -> dict[str, Any]:
     info = c.get("/x/web-interface/view", {"bvid": bvid})
+    pages = info.get("pages") or []
     cid = info.get("cid")
+    if part > 1:
+        picked = next((p for p in pages if int(p.get("page", 0)) == part), None)
+        if not picked:
+            raise NotFoundError("no_part", f"没有第 {part} P")
+        cid = picked.get("cid")
     play = c.get("/x/player/playurl", {"bvid": bvid, "cid": cid, "fnval": 16, "fourk": 1})
     dash = play.get("dash") or {}
     videos = dash.get("video") or []
@@ -48,6 +61,13 @@ def download_video(c: Client, bvid: str, out_dir: Path, quality: int = 80) -> di
     audio = max(audios, key=lambda a: a.get("bandwidth", 0)) if audios else None
 
     out_dir.mkdir(parents=True, exist_ok=True)
+    if audio_only:
+        if not audio:
+            raise NotFoundError("no_audio", "没有音轨")
+        safe = "".join(ch for ch in info.get("title", bvid) if ch not in '<>:"/\\|?*')[:100] or bvid
+        target = out_dir / f"{safe}.m4a"
+        c.download(audio.get("baseUrl") or audio.get("base_url"), str(target))
+        return {"bvid": bvid, "title": info.get("title"), "file": str(target), "bytes": target.stat().st_size, "audio_only": True}
     vpath = out_dir / "_video.m4s"
     apath = out_dir / "_audio.m4s"
     c.download(video.get("baseUrl") or video.get("base_url"), str(vpath))

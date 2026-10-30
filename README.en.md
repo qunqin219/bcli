@@ -35,7 +35,8 @@ bili mcp               # run as an MCP server over stdio
 bili completion bash
 ```
 
-Global output flags: `--yaml`, `--fields name,uid`, `--pretty`.
+Global output flags: `--yaml`, `--table`, `--fields name,uid`, `--pretty`.
+Rate limiting and caching: `BILI_RATE` (default 5/s), `BILI_CACHE_TTL` (seconds, off by default).
 Multiple accounts: `BCLI_PROFILE=work` or `bili login --profile work`.
 
 ## Install

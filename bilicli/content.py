@@ -152,3 +152,26 @@ def collections(c: Client, mid: str, page: int = 1, limit: int = 10) -> list[dic
                 }
             )
     return out[:limit]
+
+
+def timeline(c: Client, day: int = 3) -> list[dict]:
+    """番剧更新表：types=1 番剧，day 为星期几（1-7）。"""
+    data = c.get(
+        "/pgc/web/timeline",
+        {"types": 1, "before": 6, "after": 6},
+        referer="https://www.bilibili.com/anime/timeline/",
+    )
+    rows = data if isinstance(data, list) else (data.get("list") or [])
+    out: list[dict] = []
+    for item in rows or []:
+        for ep in item.get("episodes") or []:
+            out.append(
+                {
+                    "season_id": ep.get("season_id"),
+                    "title": ep.get("title", ""),
+                    "pub_index": ep.get("pub_index", ""),
+                    "pub_time": ep.get("pub_time", ""),
+                    "day": day,
+                }
+            )
+    return out

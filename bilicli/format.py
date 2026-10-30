@@ -59,3 +59,21 @@ def pick(value: Any, fields: list[str]) -> Any:
     if isinstance(value, dict):
         return {k: v for k, v in value.items() if k in fields}
     return value
+
+
+def table(rows: Any) -> str:
+    """Render a list of dicts as an aligned text table."""
+    if not isinstance(rows, list) or not rows or not isinstance(rows[0], dict):
+        return str(rows)
+    columns: list[str] = []
+    for row in rows:
+        for key in row:
+            if key not in columns:
+                columns.append(key)
+    cells = [[_scalar(row.get(c, "")) for c in columns] for row in rows]
+    widths = [max(len(c), *(len(r[i]) for r in cells)) for i, c in enumerate(columns)]
+    out = ["  ".join(c.ljust(widths[i]) for i, c in enumerate(columns))]
+    out.append("  ".join("-" * w for w in widths))
+    for row in cells:
+        out.append("  ".join(v.ljust(widths[i]) for i, v in enumerate(row)))
+    return "\n".join(out) + "\n"

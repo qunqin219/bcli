@@ -42,6 +42,7 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--pretty", action="store_true", help="缩进输出 JSON")
     p.add_argument("--yaml", action="store_true", help="以 YAML 输出")
     p.add_argument("--fields", default="", help="逗号分隔，只保留这些字段")
+    p.add_argument("--table", action="store_true", help="以表格输出（适合人看）")
     sub = p.add_subparsers(dest="command", required=True)
 
     sub.add_parser("status", help="登录状态")
@@ -57,7 +58,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     s = sub.add_parser("search", help="搜索视频或用户")
     s.add_argument("keyword")
-    s.add_argument("--type", choices=["video", "user"], default="video")
+    s.add_argument("--type", choices=["video", "user", "article", "live", "bangumi"], default="video")
     s.add_argument("-n", "--limit", type=int, default=20)
     s.add_argument("--page", type=int, default=1)
     s.add_argument("--order", default="totalrank",
@@ -85,9 +86,11 @@ def build_parser() -> argparse.ArgumentParser:
     uv.add_argument("--page", type=int, default=1)
     uv.add_argument("--order", default="pubdate", choices=["pubdate", "click", "stow"])
 
-    sub.add_parser("hot", help="热门")
+    ht = sub.add_parser("hot", help="热门")
+    ht.add_argument("-n", "--limit", type=int, default=20)
     rk = sub.add_parser("rank", help="排行榜")
     rk.add_argument("--rid", type=int, default=0, help="分区 id，0 为全站")
+    rk.add_argument("-n", "--limit", type=int, default=20)
     sub.add_parser("history", help="观看历史")
     sub.add_parser("favorites", help="收藏夹列表")
     sub.add_parser("watch-later", help="稍后再看")
@@ -207,6 +210,8 @@ def build_parser() -> argparse.ArgumentParser:
     dl.add_argument("bvid")
     dl.add_argument("-o", "--output", type=Path, default=Path("."))
     dl.add_argument("--quality", type=int, default=80, help="80=1080P 64=720P 32=480P 16=360P")
+    dl.add_argument("--part", type=int, default=1, help="第几 P")
+    dl.add_argument("--audio-only", action="store_true", help="只下音轨")
 
     ss = sub.add_parser("subtitle-srt", help="导出字幕为 SRT")
     ss.add_argument("bvid")
@@ -249,6 +254,50 @@ def build_parser() -> argparse.ArgumentParser:
     sub.add_parser("history-clear", help="清空观看历史")
 
     sub.add_parser("mcp", help="以 MCP server 方式运行（stdio）")
+
+    ud = sub.add_parser("user-dynamics", help="任意 UP 主的动态")
+    ud.add_argument("uid")
+    ud.add_argument("--offset", default="")
+    ud.add_argument("-n", "--limit", type=int, default=20)
+
+    rpl = sub.add_parser("replies", help="二级回复列表")
+    rpl.add_argument("bvid")
+    rpl.add_argument("root")
+    rpl.add_argument("--page", type=int, default=1)
+    rpl.add_argument("-n", "--limit", type=int, default=20)
+
+    cdel = sub.add_parser("comment-delete", help="删除自己的评论")
+    cdel.add_argument("bvid")
+    cdel.add_argument("rpid")
+
+    ft = sub.add_parser("follow-tags", help="关注分组")
+    ft.add_argument("uid")
+
+    tm = sub.add_parser("tag-members", help="分组内的关注")
+    tm.add_argument("uid")
+    tm.add_argument("tagid", type=int)
+    tm.add_argument("--page", type=int, default=1)
+    tm.add_argument("-n", "--limit", type=int, default=20)
+
+    bf = sub.add_parser("bangumi-followed", help="我的追番")
+    bf.add_argument("uid")
+    bf.add_argument("--page", type=int, default=1)
+    bf.add_argument("-n", "--limit", type=int, default=20)
+
+    bfl = sub.add_parser("bangumi-follow", help="追番 / 取消追番")
+    bfl.add_argument("season_id")
+    bfl.add_argument("--undo", action="store_true")
+
+    tl = sub.add_parser("timeline", help="番剧更新表")
+    tl.add_argument("--day", type=int, default=1)
+
+    qual = sub.add_parser("qualities", help="列出视频可用清晰度")
+    qual.add_argument("bvid")
+
+    ld = sub.add_parser("live-danmaku", help="抓取直播弹幕（实时）")
+    ld.add_argument("room_id")
+    ld.add_argument("--seconds", type=int, default=30)
+    ld.add_argument("-n", "--limit", type=int, default=100)
 
     comp = sub.add_parser("completion", help="生成 shell 补全脚本")
     comp.add_argument("shell", choices=["bash", "zsh", "fish"])
@@ -326,10 +375,9 @@ def run(args: argparse.Namespace) -> Any:
         return api.user(auth.client(), args.uid)
     if cmd == "user-videos":
         return api.user_videos(auth.client(), args.uid, args.page, args.limit, args.order)
-    if cmd == "hot":
-        return api.hot(auth.client())
+
     if cmd == "rank":
-        return api.rank(auth.client(), rid=args.rid)
+        return api.rank(auth.client(), args.limit, args.rid)
     if cmd == "history":
         return api.history(auth.client())
     if cmd == "favorites":
@@ -414,6 +462,50 @@ def run(args: argparse.Namespace) -> Any:
             return content.user_articles(c, args.mid, args.page, args.limit)
         return content.collections(c, args.mid, args.page, args.limit)
 
+    if cmd == "user-dynamics":
+        from . import social2
+
+        return social2.user_dynamics(auth.client(), args.uid, args.offset, args.limit)
+    if cmd == "replies":
+        from . import social2
+
+        c = auth.client()
+        aid = api.video(c, api.bvid_of(args.bvid))["aid"]
+        return social2.replies(c, str(aid), args.root, args.page, args.limit)
+    if cmd == "comment-delete":
+        from . import social2
+
+        c = auth.client()
+        aid = api.video(c, api.bvid_of(args.bvid))["aid"]
+        return social2.delete_comment(c, str(aid), args.rpid)
+    if cmd == "follow-tags":
+        from . import social2
+
+        return social2.follow_tags(auth.client(), args.uid)
+    if cmd == "tag-members":
+        from . import social2
+
+        return social2.tag_members(auth.client(), args.uid, args.tagid, args.page, args.limit)
+    if cmd == "bangumi-followed":
+        from . import social2
+
+        return social2.bangumi_followed(auth.client(), args.uid, args.page, args.limit)
+    if cmd == "bangumi-follow":
+        from . import social2
+
+        return social2.bangumi_follow(auth.client(), args.season_id, args.undo)
+    if cmd == "timeline":
+        from . import content
+
+        return content.timeline(auth.client(), args.day)
+    if cmd == "live-danmaku":
+        from .livedanmaku import stream
+
+        return stream(args.room_id, args.seconds, args.limit)
+    if cmd == "qualities":
+        return api.video_qualities(auth.client(), api.bvid_of(args.bvid))
+    if cmd == "hot":
+        return api.hot(auth.client(), args.limit)
     if cmd in {"notifications", "unread", "followings", "fans", "comments", "reply", "like-comment"}:
         from . import social
 
@@ -438,7 +530,7 @@ def run(args: argparse.Namespace) -> Any:
         c = auth.client()
         bvid = api.bvid_of(args.bvid)
         if cmd == "download":
-            return media.download_video(c, bvid, args.output, args.quality)
+            return media.download_video(c, bvid, args.output, args.quality, args.part, args.audio_only)
         if cmd == "subtitle-srt":
             return media.subtitle_srt(c, bvid, args.output, args.lang)
         return media.danmaku_export(c, bvid, args.format, args.limit)
@@ -518,7 +610,11 @@ def main(argv: list[str] | None = None) -> int:
             from .format import pick
 
             data = pick(data, [f.strip() for f in args.fields.split(",") if f.strip()])
-        if getattr(args, "yaml", False):
+        if getattr(args, "table", False):
+            from .format import table
+
+            sys.stdout.write(table(data))
+        elif getattr(args, "yaml", False):
             from .format import to_yaml
 
             sys.stdout.write(to_yaml(data))
@@ -545,6 +641,9 @@ def main(argv: list[str] | None = None) -> int:
         return EXIT_API
     except RuntimeError as exc:
         emit(Envelope.err("runtime_error", str(exc)), pretty=args.pretty)
+        return EXIT_API
+    except Exception as exc:  # noqa: BLE001 - never leak a traceback to users
+        emit(Envelope.err("unexpected_error", f"{type(exc).__name__}: {exc}"), pretty=args.pretty)
         return EXIT_API
 
 

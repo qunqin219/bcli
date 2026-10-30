@@ -7,6 +7,7 @@ anything that mutates the account stays a deliberate CLI action.
 from __future__ import annotations
 
 import json
+import os
 import sys
 from typing import Any, Callable
 
@@ -28,9 +29,11 @@ def _int_prop(desc: str, default: int) -> dict:
     return {"type": "integer", "description": desc, "default": default}
 
 
+WRITE_TOOLS = os.environ.get("BILI_MCP_WRITE") == "1"
+
+
 def build_tools() -> list[dict]:
-    c = auth.client()
-    return [
+    tools = [
         _tool("bili_status", "登录状态与当前账号", {}, lambda a: _status()),
         _tool("bili_hot", "B站热门视频", {"limit": _int_prop("数量", 10)}, lambda a: api.hot(auth.client(), a.get("limit", 10))),
         _tool("bili_rank", "全站排行榜", {"limit": _int_prop("数量", 10)}, lambda a: api.rank(auth.client(), a.get("limit", 10))),
@@ -73,6 +76,16 @@ def build_tools() -> list[dict]:
             lambda a: _notifications(a),
         ),
     ]
+    if WRITE_TOOLS:
+        tools += [
+            _tool("bili_like", "点赞/取消点赞（写操作）",
+                  {"bvid": {"type": "string"}, "undo": {"type": "boolean"}},
+                  lambda a: api.like(auth.client(), api.bvid_of(a["bvid"]), a.get("undo", False))),
+            _tool("bili_follow", "关注/取关（写操作）",
+                  {"uid": {"type": "string"}, "undo": {"type": "boolean"}},
+                  lambda a: api.follow(auth.client(), a["uid"], a.get("undo", False))),
+        ]
+    return tools
 
 
 def _status() -> dict:

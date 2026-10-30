@@ -62,21 +62,36 @@ def search(
     duration: int = 0,
     tids: int = 0,
 ) -> list[dict]:
-    payload = c.get(
-        "/x/web-interface/wbi/search/type",
-        {
-            "search_type": kind,
-            "keyword": keyword,
-            "page": page,
-            "page_size": min(max(limit, 1), 50),
-            "order": order,
-            "duration": duration,
-            "tids": tids,
-        },
-        wbi=True,
-    )
+    if kind == "live":
+        # 直播搜索只在不带 wbi 的旧接口上可用，返回 result.live_room
+        data = c.get("/x/web-interface/search/type", {"search_type": "live", "keyword": keyword, "page": page})
+        rooms = (data.get("result") or {}).get("live_room") or []
+        return [
+            {
+                "room_id": r.get("roomid"),
+                "title": _clean(r.get("title", "")),
+                "author": _clean(r.get("uname", "")),
+                "area": _clean(r.get("cate_name", "")),
+                "online": _int(r.get("online")),
+                "url": f"https://live.bilibili.com/{r.get('roomid')}",
+            }
+            for r in rooms[:limit]
+        ]
+
+    params: dict[str, Any] = {
+        "search_type": kind,
+        "keyword": keyword,
+        "page": page,
+        "page_size": min(max(limit, 1), 50),
+    }
     if kind == "video":
-        rows = payload.get("result") or []
+        params.update({"order": order, "duration": duration, "tids": tids})
+    payload = c.get("/x/web-interface/wbi/search/type", params, wbi=True)
+    rows = payload.get("result") or []
+    if not isinstance(rows, list):
+        rows = (rows or {}).get("list") if isinstance(rows, dict) else []
+    rows = rows or []
+    if kind == "video":
         return [
             {
                 "bvid": r.get("bvid"),
@@ -88,7 +103,23 @@ def search(
             }
             for r in rows[:limit]
         ]
-    rows = payload.get("result") or []
+    if kind == "article":
+        return [
+            {"id": r.get("id"), "title": _clean(r.get("title", "")), "author": r.get("author", ""),
+             "view": _int(r.get("view")), "url": f"https://www.bilibili.com/read/cv{r.get('id')}"}
+            for r in rows[:limit]
+        ]
+    if kind == "live":
+        return [
+            {"room_id": r.get("roomid"), "title": _clean(r.get("title", "")), "author": r.get("uname", ""),
+             "online": _int(r.get("online")), "url": f"https://live.bilibili.com/{r.get('roomid')}"}
+            for r in rows[:limit]
+        ]
+    if kind == "bangumi":
+        return [
+            {"season_id": r.get("season_id"), "title": _clean(r.get("title", "")), "type": r.get("season_type_name", "")}
+            for r in rows[:limit]
+        ]
     return [
         {
             "uid": str(r.get("mid", "")),
@@ -626,3 +657,16 @@ def history_delete(c: Client, kid: str) -> dict[str, Any]:
 def history_clear(c: Client) -> dict[str, Any]:
     c.post("/x/v2/history/clear", {})
     return {"cleared": True}
+
+
+def video_qualities(c: Client, bvid: str) -> list[dict]:
+    """可用的视频清晰度列表（需要登录才能拿到大会员档位）。"""
+    info = c.get("/x/web-interface/view", {"bvid": bvid})
+    play = c.get("/x/player/playurl", {"bvid": bvid, "cid": info.get("cid"), "fnval": 16, "fourk": 1})
+    rows = (play.get("dash") or {}).get("video") or []
+    seen: dict[int, dict] = {}
+    for r in rows:
+        qid = r.get("id")
+        if qid and qid not in seen:
+            seen[qid] = {"id": qid, "codec": r.get("codecs", ""), "bandwidth": r.get("bandwidth", 0)}
+    return sorted(seen.values(), key=lambda x: -x["id"])

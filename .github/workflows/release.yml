@@ -55,6 +55,8 @@ jobs:
             name: macos-arm64
           - os: windows-latest
             name: windows-x64
+          - os: windows-11-arm
+            name: windows-arm64
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
