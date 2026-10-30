@@ -29,6 +29,13 @@ bili asr BV1xxxxxxxxx --keep-audio             # 下载 + 切分 + SenseVoice �
 ## 安装
 
 ```bash
+# macOS (Apple Silicon) / Linux x86_64
+brew tap qunqin219/tap && brew install bili
+
+# 或者直接下二进制
+# https://github.com/qunqin219/bcli/releases/latest
+
+# 源码安装
 python3 -m venv .venv
 .venv/bin/pip install -e ".[qr]"        # 不需要 PNG 二维码可去掉 [qr]
 .venv/bin/bili --version
@@ -104,7 +111,8 @@ bash scripts/smoke.sh     # 15 项只读命令冒烟测试（需要已登录）
 ## 状态
 
 v0.2.0：只读命令、写操作（点赞/投币/三连/关注/收藏/评论）、音频下载、ASR。
-尚未实现：发动态、番剧/直播、视频流下载。包名 `bilicli`，尚未发布到 PyPI。
+尚未实现：发动态、番剧/直播、视频流下载。
+分发渠道：GitHub Releases（三平台二进制 + wheel/sdist）与 Homebrew tap；暂不发布 PyPI。
 
 ## License
 
