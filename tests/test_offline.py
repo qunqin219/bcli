@@ -97,6 +97,30 @@ class TestWrites(unittest.TestCase):
             c.post("/x/test", {"a": 1})
 
 
+class TestUpdate(unittest.TestCase):
+    def test_parse_version(self):
+        from bilicli.update import parse_version
+
+        self.assertEqual(parse_version("v0.2.1"), (0, 2, 1))
+        self.assertEqual(parse_version("0.10.0"), (0, 10, 0))
+        self.assertEqual(parse_version("v1.0.0-rc1"), (1, 0, 1))
+
+    def test_is_newer(self):
+        from bilicli.update import is_newer
+
+        self.assertTrue(is_newer("v0.2.1", "0.2.0"))
+        self.assertFalse(is_newer("v0.2.0", "0.2.0"))
+        self.assertFalse(is_newer("v0.1.9", "0.2.0"))
+
+    def test_platform_asset_known(self):
+        from bilicli import update
+
+        with mock.patch("platform.system", return_value="Linux"):
+            self.assertEqual(update.platform_asset(), "bili-linux-x64")
+        with mock.patch("platform.system", return_value="Darwin"), mock.patch("platform.machine", return_value="arm64"):
+            self.assertEqual(update.platform_asset(), "bili-macos-arm64")
+
+
 class TestClientCookies(unittest.TestCase):
     def test_cookie_header_order_and_login_flag(self):
         c = Client({"sessdata": "s", "bili_jct": "j", "dedeuserid": "1"})

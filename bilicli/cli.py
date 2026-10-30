@@ -133,6 +133,9 @@ def build_parser() -> argparse.ArgumentParser:
     s_asr.add_argument("--model", default=None, help="SenseVoice 模型目录")
     s_asr.add_argument("--keep-audio", action="store_true", help="保留切分后的 WAV")
 
+    up = sub.add_parser("update", help="检查 / 安装新版本")
+    up.add_argument("--check", action="store_true", help="只检查，不安装")
+
     r = sub.add_parser("api", help="原始 API 调用（调试用）")
     r.add_argument("path")
     r.add_argument("--param", action="append", default=[], metavar="K=V")
@@ -245,6 +248,10 @@ def run(args: argparse.Namespace) -> Any:
             for p in paths:
                 Path(p).unlink(missing_ok=True)
         return {"source": meta, "transcription": result}
+    if cmd == "update":
+        from . import update
+
+        return update.check() if args.check else update.perform_update()
     if cmd == "api":
         params = {}
         for item in args.param:

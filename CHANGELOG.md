@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.2.1
+
+- 新增 `bili update` / `bili update --check`：二进制安装可原地自更新，Homebrew 用户提示走 `brew upgrade`
+- 版本比较、平台资产映射有离线单测
+
 ## 0.2.0
 
 - 新增写操作：`like` / `coin` / `triple` / `follow` / `fav-add` / `fav-remove` / `comment`

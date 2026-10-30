@@ -7,5 +7,5 @@ Design goals (the parts worth keeping from other implementations):
   * zero third-party runtime dependencies
 """
 
-__version__ = "0.2.0"
+__version__ = "0.2.1"
 SCHEMA_VERSION = "1"

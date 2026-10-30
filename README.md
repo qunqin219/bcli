@@ -43,6 +43,17 @@ python3 -m venv .venv
 
 要求 Python 3.11+。`audio` 切分需要系统有 `ffmpeg`；`--no-split` 则不需要。
 
+## 更新
+
+```bash
+bili update --check   # 看有没有新版本
+bili update           # 二进制安装：自动下载并原地替换
+```
+
+- Homebrew 装的：提示用 `brew upgrade bili`（不要自替换，会破坏 Cellar 记录）
+- 源码装的：提示 `git pull && pip install -e .`
+- 下载二进制的：自动替换当前可执行文件，失败会回滚（先写临时文件再原子 rename）
+
 ## 输出契约
 
 所有命令输出同一个信封，成功和失败都是合法 JSON，便于脚本和 agent 消费：
