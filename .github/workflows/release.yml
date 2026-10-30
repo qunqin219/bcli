@@ -107,7 +107,7 @@ jobs:
           echo "--- notes ---"
           cat notes.md
       - name: Create GitHub Release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           files: assets/*
           body_path: notes.md
