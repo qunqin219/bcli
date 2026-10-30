@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.5.1
+
+- MCP 写工具新增 `bili_dynamic_post`（需 `BILI_MCP_WRITE=1`）
+
 ## 0.5.0
 
 - 批量下载 `batch`：视频/番剧/课程/收藏夹/合集/UP 空间，支持 `--list` 只解析

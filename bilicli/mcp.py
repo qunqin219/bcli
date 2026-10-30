@@ -88,6 +88,9 @@ def build_tools() -> list[dict]:
             _tool("bili_follow", "关注/取关（写操作）",
                   {"uid": {"type": "string"}, "undo": {"type": "boolean"}},
                   lambda a: api.follow(auth.client(), a["uid"], a.get("undo", False))),
+            _tool("bili_dynamic_post", "发一条纯文本动态（写操作，会公开发布）",
+                  {"text": {"type": "string"}},
+                  lambda a: api.dynamic_post(auth.client(), a["text"])),
         ]
     return tools
 
