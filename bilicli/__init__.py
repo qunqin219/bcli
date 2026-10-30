@@ -1,4 +1,4 @@
-"""bcli — a small, dependency-free Bilibili CLI.
+"""bili — a small, dependency-free Bilibili CLI.
 
 Design goals (the parts worth keeping from other implementations):
   * a stable output envelope: {ok, schema_version, data, error}
@@ -7,5 +7,11 @@ Design goals (the parts worth keeping from other implementations):
   * zero third-party runtime dependencies
 """
 
-__version__ = "0.2.2"
+from importlib.metadata import PackageNotFoundError, version
+
+try:  # single source of truth: pyproject.toml
+    __version__ = version("bilicli")
+except PackageNotFoundError:  # running from a source checkout without install
+    __version__ = "0.0.0+source"
+
 SCHEMA_VERSION = "1"

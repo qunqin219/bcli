@@ -1,0 +1,27 @@
+name: Feature request
+description: 想要的能力
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: 你想解决什么
+      description: 描述场景，不要一上来就指定实现方案
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: 你希望的接口
+      description: 命令名、参数、输出长什么样
+      render: shell
+  - type: dropdown
+    id: writes
+    attributes:
+      label: 是否涉及写操作
+      description: 点赞、投币、发评论这类会改动账号状态的
+      options:
+        - "否，只读"
+        - "是"
+    validations:
+      required: true

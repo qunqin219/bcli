@@ -97,6 +97,34 @@ class TestWrites(unittest.TestCase):
             c.post("/x/test", {"a": 1})
 
 
+class TestCliSurface(unittest.TestCase):
+    def test_all_commands_registered(self):
+        from bilicli.cli import build_parser
+
+        parser = build_parser()
+        actions = [a for a in parser._actions if a.dest == "command"]
+        names = set(actions[0].choices)
+        for expected in (
+            "status", "whoami", "login", "logout", "search", "video", "user",
+            "user-videos", "hot", "rank", "history", "favorites", "watch-later",
+            "feed", "my-dynamics", "favorites-items", "like", "coin", "triple",
+            "follow", "fav-add", "fav-remove", "comment", "audio", "asr",
+            "update", "api",
+        ):
+            self.assertIn(expected, names)
+
+    def test_no_network_help(self):
+        import contextlib
+        import io
+
+        from bilicli.cli import main
+
+        buf = io.StringIO()
+        with contextlib.redirect_stdout(buf), self.assertRaises(SystemExit):
+            main(["--help"])
+        self.assertIn("bili", buf.getvalue())
+
+
 class TestUpdate(unittest.TestCase):
     def test_parse_version(self):
         from bilicli.update import parse_version

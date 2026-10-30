@@ -125,6 +125,25 @@ v0.2.0：只读命令、写操作（点赞/投币/三连/关注/收藏/评论）
 尚未实现：发动态、番剧/直播、视频流下载。
 分发渠道：GitHub Releases（三平台二进制 + wheel/sdist）与 Homebrew tap；暂不发布 PyPI。
 
+## 维护与版本策略
+
+- 语义化版本：破坏输出结构的改动进大版本，新命令进次版本，修 bug 进补丁版本
+- 每个 release 的正文直接取自 `CHANGELOG.md` 对应段落，不靠自动生成的 commit 列表
+- 只维护最新 release；旧版本不保证修 bug
+- 变更流程、发版清单见 [CONTRIBUTING.md](CONTRIBUTING.md)
+
+## 隐私与数据
+
+- 不做任何遥测或统计上报
+- 凭证只存在本机 `~/.config/bcli/credential.json`（0600）
+- 请求只发往 `api.bilibili.com` / `passport.bilibili.com` / B 站 CDN
+- `bili update` 只访问 GitHub Releases API，用于检查新版本
+
+## 免责声明
+
+本项目是非官方工具，与哔哩哔哩无关联。使用者需自行遵守 B 站用户协议；
+写操作（点赞、投币、评论、关注）会产生真实的账号行为，请自行判断。
+
 ## License
 
 MIT

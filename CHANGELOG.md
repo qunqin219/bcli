@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+- 版本号改为单一来源（`importlib.metadata`，避免 `__init__` 与 `pyproject` 漂移）
+- 补齐项目治理文件：CONTRIBUTING / SECURITY / issue 模板 / PR 模板 / dependabot
+- `.gitignore` 覆盖 build、dist、spec 等构建产物
+
 ## 0.2.2
 
 - 发布流程自动化：打 tag 后自动更新 Homebrew tap 的 formula（版本、URL、sha256）

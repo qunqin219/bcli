@@ -1,0 +1,55 @@
+name: Bug report
+description: 报告一个可复现的问题
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        提交前请先跑 `bili update --check`，确认不是旧版本的问题。
+        **不要**贴 SESSDATA / bili_jct / 完整 credential.json。
+  - type: input
+    id: version
+    attributes:
+      label: 版本
+      description: "`bili --version` 的输出"
+      placeholder: bili 0.2.2
+    validations:
+      required: true
+  - type: dropdown
+    id: install
+    attributes:
+      label: 安装方式
+      options:
+        - Homebrew
+        - GitHub Releases 二进制
+        - 源码 / pip
+    validations:
+      required: true
+  - type: input
+    id: platform
+    attributes:
+      label: 系统
+      placeholder: macOS 26 arm64 / Ubuntu 24.04 x64
+    validations:
+      required: true
+  - type: textarea
+    id: command
+    attributes:
+      label: 执行的命令
+      render: shell
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: 期望结果
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: 实际结果
+      description: 贴完整的 JSON 信封输出，不要只贴报错行
+      render: json
+    validations:
+      required: true
