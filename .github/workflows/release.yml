@@ -76,11 +76,24 @@ jobs:
           cp artifacts/dist/*.whl artifacts/dist/*.tar.gz assets/ 2>/dev/null || true
           find artifacts -name 'bili-*' -type f -exec cp {} assets/ \;
           ls -lh assets
+      - name: Extract release notes from CHANGELOG
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          VERSION="${TAG#v}"
+          awk -v v="## ${VERSION}" 'index($0,v)==1{f=1;next} /^## /{f=0} f' CHANGELOG.md > notes.md
+          if [ ! -s notes.md ]; then
+            echo "CHANGELOG 里没有 ${VERSION} 段落" >&2
+            printf 'See [CHANGELOG.md](https://github.com/qunqin219/bcli/blob/master/CHANGELOG.md).\n' > notes.md
+          fi
+          echo "--- notes ---"
+          cat notes.md
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
           files: assets/*
-          generate_release_notes: true
+          body_path: notes.md
 
   pypi:
     needs: [build-dist]
