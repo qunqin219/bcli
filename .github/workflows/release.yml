@@ -36,7 +36,7 @@ jobs:
       - run: |
           python -m pip install --upgrade pip build
           python -m build
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: dist
           path: dist/*
@@ -74,7 +74,7 @@ jobs:
             cp dist/bili "out/bili-${{ matrix.name }}"
             chmod +x "out/bili-${{ matrix.name }}"
           fi
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: bin-${{ matrix.name }}
           path: out/*
