@@ -62,22 +62,6 @@ def search(
     duration: int = 0,
     tids: int = 0,
 ) -> list[dict]:
-    if kind == "live":
-        # 直播搜索只在不带 wbi 的旧接口上可用，返回 result.live_room
-        data = c.get("/x/web-interface/search/type", {"search_type": "live", "keyword": keyword, "page": page})
-        rooms = (data.get("result") or {}).get("live_room") or []
-        return [
-            {
-                "room_id": r.get("roomid"),
-                "title": _clean(r.get("title", "")),
-                "author": _clean(r.get("uname", "")),
-                "area": _clean(r.get("cate_name", "")),
-                "online": _int(r.get("online")),
-                "url": f"https://live.bilibili.com/{r.get('roomid')}",
-            }
-            for r in rooms[:limit]
-        ]
-
     params: dict[str, Any] = {
         "search_type": kind,
         "keyword": keyword,
@@ -107,12 +91,6 @@ def search(
         return [
             {"id": r.get("id"), "title": _clean(r.get("title", "")), "author": r.get("author", ""),
              "view": _int(r.get("view")), "url": f"https://www.bilibili.com/read/cv{r.get('id')}"}
-            for r in rows[:limit]
-        ]
-    if kind == "live":
-        return [
-            {"room_id": r.get("roomid"), "title": _clean(r.get("title", "")), "author": r.get("uname", ""),
-             "online": _int(r.get("online")), "url": f"https://live.bilibili.com/{r.get('roomid')}"}
             for r in rows[:limit]
         ]
     if kind == "bangumi":

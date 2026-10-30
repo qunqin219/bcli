@@ -58,7 +58,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     s = sub.add_parser("search", help="搜索视频或用户")
     s.add_argument("keyword")
-    s.add_argument("--type", choices=["video", "user", "article", "live", "bangumi"], default="video")
+    s.add_argument("--type", choices=["video", "user", "article", "bangumi"], default="video")
     s.add_argument("-n", "--limit", type=int, default=20)
     s.add_argument("--page", type=int, default=1)
     s.add_argument("--order", default="totalrank",
@@ -156,9 +156,6 @@ def build_parser() -> argparse.ArgumentParser:
     bgr.add_argument("--season-type", type=int, default=1)
     bgr.add_argument("--day", type=int, default=3)
     bgr.add_argument("-n", "--limit", type=int, default=20)
-
-    lv = sub.add_parser("live", help="直播间信息")
-    lv.add_argument("room_id")
 
     ar = sub.add_parser("article", help="专栏文章")
     ar.add_argument("cvid")
@@ -294,7 +291,6 @@ def build_parser() -> argparse.ArgumentParser:
     qual = sub.add_parser("qualities", help="列出视频可用清晰度")
     qual.add_argument("bvid")
 
-    ld = sub.add_parser("live-danmaku", help="抓取直播弹幕（实时）")
     ld.add_argument("room_id")
     ld.add_argument("--seconds", type=int, default=30)
     ld.add_argument("-n", "--limit", type=int, default=100)
@@ -445,7 +441,7 @@ def run(args: argparse.Namespace) -> Any:
         from . import update
 
         return update.check() if args.check else update.perform_update()
-    if cmd in {"bangumi", "bangumi-rank", "live", "article", "user-articles", "collections"}:
+    if cmd in {"bangumi", "bangumi-rank", "article", "user-articles", "collections"}:
         from . import content
 
         c = auth.client()
@@ -454,8 +450,6 @@ def run(args: argparse.Namespace) -> Any:
                                    season_id=None if args.ep else args.season_id)
         if cmd == "bangumi-rank":
             return content.bangumi_rank(c, args.season_type, args.day, args.limit)
-        if cmd == "live":
-            return content.live_room(c, args.room_id)
         if cmd == "article":
             return content.article(c, args.cvid)
         if cmd == "user-articles":
@@ -498,10 +492,6 @@ def run(args: argparse.Namespace) -> Any:
         from . import content
 
         return content.timeline(auth.client(), args.day)
-    if cmd == "live-danmaku":
-        from .livedanmaku import stream
-
-        return stream(args.room_id, args.seconds, args.limit)
     if cmd == "qualities":
         return api.video_qualities(auth.client(), api.bvid_of(args.bvid))
     if cmd == "hot":

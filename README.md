@@ -26,7 +26,7 @@ bili audio BV1xxxxxxxxx -o ./a --segment 300   # 切 16k 单声道 WAV
 bili asr BV1xxxxxxxxx --keep-audio --srt a.srt # 转写并可导出 SRT
 
 # 更多内容类型
-bili bangumi 33378 / bili bangumi-rank / bili live 6
+bili bangumi 33378 / bili bangumi-rank
 bili article 45123193 / bili user-articles 946974 / bili collections 946974
 
 # 社交
@@ -45,8 +45,7 @@ bili later-add BV1xxxxxxxxx / bili later-del BV1xxxxxxxxx
 bili history-del <kid> / bili history-clear
 bili dynamic-post "纯文本动态" / bili dynamic-delete <id>
 
-# 直播 / 番剧 / 空间
-bili live-danmaku 7734200 --seconds 30   # 实时弹幕（匿名连接，实验性）
+# 番剧 / 空间
 bili timeline / bili bangumi-followed 946974 / bili bangumi-follow 33378
 bili user-dynamics 946974 / bili follow-tags 946974
 bili qualities BV1xxxxxxxxx / bili download BV1xxxxxxxxx --part 2 --audio-only

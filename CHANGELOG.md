@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.4.1
+
+- 移除直播支持：删除 `live`、`live-danmaku`、直播搜索与对应 MCP 工具
+
 ## 0.4.0
 
 - 直播弹幕：`live-danmaku`（纯标准库 WebSocket，匿名连接，实验性）

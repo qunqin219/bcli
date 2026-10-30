@@ -33,7 +33,6 @@ check my-dynamics   bili my-dynamics
 check doctor        bili doctor
 check bangumi       bili bangumi 33378
 check bangumi-rank  bili bangumi-rank -n 3
-check live          bili live 6
 check user-articles bili user-articles 946974 -n 2
 check collections   bili collections 946974 -n 2
 check notifications bili notifications

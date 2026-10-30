@@ -181,21 +181,6 @@ class TestTable(unittest.TestCase):
         self.assertEqual(len(text.strip().splitlines()), 4)
 
 
-class TestDanmakuParse(unittest.TestCase):
-    def test_walk_extracts_nested_packets(self):
-        import struct
-        import zlib
-        import json as _json
-
-        from bilicli.livedanmaku import _walk
-
-        inner = _json.dumps({"cmd": "DANMU_MSG", "info": [[], "hi", [0, "u"]]}).encode()
-        packet = struct.pack(">IHHII", 16 + len(inner), 16, 1, 5, 1) + inner
-        compressed = struct.pack(">IHHII", 16 + len(zlib.compress(packet)), 16, 2, 5, 1) + zlib.compress(packet)
-        messages = list(_walk(compressed))
-        self.assertEqual(messages[0]["cmd"], "DANMU_MSG")
-
-
 class TestMcp(unittest.TestCase):
     def test_initialize_and_tools(self):
         from bilicli import mcp

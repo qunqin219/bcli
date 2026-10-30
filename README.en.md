@@ -23,7 +23,7 @@ bili asr BV1xxxxxxxxx --keep-audio
 bili update --check / bili update
 
 # more content types / social / media
-bili bangumi 33378 / bili live 6 / bili article 45123193 / bili collections 946974
+bili bangumi 33378 / bili article 45123193 / bili collections 946974
 bili notifications --kind reply / bili unread / bili followings 946974
 bili comments BV1xxxxxxxxx --cursor 3
 bili download BV1xxxxxxxxx --quality 80 / bili subtitle-srt BV1xxxxxxxxx -o a.srt

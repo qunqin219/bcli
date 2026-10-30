@@ -68,7 +68,6 @@ def build_tools() -> list[dict]:
         _tool("bili_feed", "关注动态", {"limit": _int_prop("数量", 20)}, lambda a: api.dynamic_feed(auth.client(), a.get("limit", 20))),
         _tool("bili_my_dynamics", "我的动态", {"limit": _int_prop("数量", 20)}, lambda a: api.my_dynamics(auth.client(), a.get("limit", 20))),
         _tool("bili_bangumi", "番剧信息", {"season_id": {"type": "string"}}, lambda a: _bangumi(a)),
-        _tool("bili_live", "直播间状态", {"room_id": {"type": "string"}}, lambda a: _live(a)),
         _tool(
             "bili_notifications",
             "消息中心（回复/@/点赞）",
@@ -112,11 +111,6 @@ def _bangumi(a: dict) -> dict:
 
     return content.bangumi(auth.client(), season_id=a["season_id"])
 
-
-def _live(a: dict) -> dict:
-    from . import content
-
-    return content.live_room(auth.client(), a["room_id"])
 
 
 def _notifications(a: dict) -> list:

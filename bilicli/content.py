@@ -1,12 +1,10 @@
-"""Content types beyond plain videos: bangumi, live, articles, collections."""
+"""Content types beyond plain videos: bangumi, articles, collections."""
 
 from __future__ import annotations
 
 from typing import Any
 
 from .http import Client
-
-LIVE_API = "https://api.live.bilibili.com"
 
 
 def _int(value: Any) -> int:
@@ -70,28 +68,6 @@ def bangumi_rank(c: Client, season_type: int = 1, day: int = 3, limit: int = 20)
         }
         for r in rows[:limit]
     ]
-
-
-def live_room(c: Client, room_id: str) -> dict[str, Any]:
-    data = c.get(
-        "/room/v1/Room/get_info",
-        {"room_id": room_id},
-        host=LIVE_API,
-        referer="https://live.bilibili.com/",
-    )
-    status = _int(data.get("live_status"))
-    return {
-        "room_id": data.get("room_id"),
-        "uid": data.get("uid"),
-        "title": data.get("title", ""),
-        "live": status == 1,
-        "live_status": status,
-        "online": _int(data.get("online")),
-        "attention": _int(data.get("attention")),
-        "area": data.get("area_name", ""),
-        "keyframe": data.get("keyframe", ""),
-        "url": f"https://live.bilibili.com/{data.get('room_id')}",
-    }
 
 
 def article(c: Client, cvid: str) -> dict[str, Any]:
