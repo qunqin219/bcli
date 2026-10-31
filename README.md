@@ -121,28 +121,48 @@ bili update           # 二进制安装：自动下载并原地替换
 
 ```json
 {
+  "asr_engine": "sensevoice",
   "asr_python": "/path/to/env/bin/python",
   "asr_model": "/path/to/SenseVoiceSmall",
+  "asr_qwen_python": "/path/to/qwen-env/bin/python",
+  "asr_qwen_model": "/path/to/Qwen3-ASR-0.6B",
   "asr_worker": "/path/to/scripts/asr_worker.py"
 }
 ```
 
-对应环境变量：`BCLI_ASR_PYTHON`、`BCLI_ASR_MODEL`、`BCLI_ASR_WORKER`。
+对应环境变量：`BCLI_ASR_ENGINE`、`BCLI_ASR_PYTHON`、`BCLI_ASR_MODEL`、`BCLI_ASR_QWEN_PYTHON`、`BCLI_ASR_QWEN_MODEL`、`BCLI_ASR_WORKER`。
 
 ## ASR
 
-`bili asr` 把视频下载成 16k 单声道 WAV 分段，再调用 `scripts/asr_worker.py`，用 [SenseVoice-Small](https://huggingface.co/FunAudioLLM/SenseVoiceSmall) 转写。模型和 torch 不在本 CLI 的依赖里，worker 在独立解释器中运行：
+`bili asr` 把视频下载成 16k 单声道 WAV 分段，再交给外部 worker 转写。torch 不在本 CLI 的依赖里，每个引擎跑在自己的解释器中。支持两个引擎，可同时安装：
+
+| 引擎 | 模型 | 特点 |
+|---|---|---|
+| `sensevoice`（默认） | SenseVoice-Small（900 MB） | 非自回归，CPU 上 RTF≈0.1，中文强、带标点；英文术语弱 |
+| `qwen3-asr` | Qwen3-ASR-0.6B（1.8 GB） | 自回归，CPU 上慢约 8 倍；中英混说、术语明显更准，支持 52 种语言 |
 
 ```bash
-python3 -m venv .venv-asr
-.venv-asr/bin/pip install torch torchaudio --index-url https://download.pytorch.org/whl/cpu
+# SenseVoice
+python3 -m venv .venv-asr && .venv-asr/bin/pip install torch torchaudio --index-url https://download.pytorch.org/whl/cpu
 .venv-asr/bin/pip install funasr
-
-# 下载模型（Hugging Face）
 hf download FunAudioLLM/SenseVoiceSmall --local-dir ~/models/SenseVoiceSmall
+
+# Qwen3-ASR
+python3 -m venv .venv-qwen && .venv-qwen/bin/pip install torch --index-url https://download.pytorch.org/whl/cpu
+.venv-qwen/bin/pip install qwen-asr
+hf download Qwen/Qwen3-ASR-0.6B --local-dir ~/models/Qwen3-ASR-0.6B
 ```
 
-然后在 `~/.config/bcli/config.json` 里把 `asr_python` 指向 `.venv-asr/bin/python`。默认模型目录是 `~/models/SenseVoiceSmall`。
+把 `asr_python` / `asr_qwen_python` 指向各自解释器，`asr_model` / `asr_qwen_model` 指向模型目录。然后：
+
+```bash
+bili asr-engines                              # 看检测到了哪些引擎、路径对不对
+bili asr BV1xxxxxxxxx                         # 用配置里的默认引擎
+bili asr BV1xxxxxxxxx --engine qwen3-asr      # 这一条换引擎
+bili asr BV1xxxxxxxxx --engine auto           # 自动选第一个可用引擎
+```
+
+Qwen3-ASR 的 dtype 可用 `BCLI_QWEN_ASR_DTYPE` 控制（`float32` 默认，`bfloat16` 省内存但 CPU 上更慢）。
 
 ## 为什么不用现成的库
 

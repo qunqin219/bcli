@@ -84,8 +84,14 @@ SESSDATA, which is a bug in several existing wrappers.
 ## ASR
 
 `bili asr` downloads the audio, splits it into 16 kHz mono WAV segments and runs
-[SenseVoice-Small](https://huggingface.co/FunAudioLLM/SenseVoiceSmall) in a
-separate interpreter (torch/funasr are not dependencies of this CLI):
+the transcription model in a separate interpreter (torch is not a dependency of
+this CLI). Two engines are supported and can be installed side by side:
+
+- `sensevoice` (default): [SenseVoice-Small](https://huggingface.co/FunAudioLLM/SenseVoiceSmall), RTF≈0.1 on CPU, strong Chinese, weak on English terms
+- `qwen3-asr`: [Qwen3-ASR-0.6B](https://huggingface.co/Qwen/Qwen3-ASR-0.6B), ~8x slower on CPU, clearly better on code-switching and jargon
+
+`bili asr-engines` shows what is installed; `--engine qwen3-asr` overrides the
+configured default for one run. Setup for SenseVoice:
 
 ```bash
 python3 -m venv .venv-asr

@@ -381,39 +381,11 @@ def _safe_name(title: str) -> str:
 # --------------------------------------------------------------------------
 # ASR (SenseVoice via an external worker)
 # --------------------------------------------------------------------------
-def transcribe(paths: list[str], model: str | None = None, timeout: int = 1800) -> dict[str, Any]:
-    """Run SenseVoice on audio files through scripts/asr_worker.py.
+def transcribe(paths: list[str], model: str | None = None, timeout: int = 7200) -> dict[str, Any]:
+    """Transcribe with the default ASR engine (see bilicli.asr)."""
+    from . import asr
 
-    The model needs torch/funasr, which this CLI deliberately does not depend
-    on; the worker runs in its own interpreter.
-    """
-    import json
-    import subprocess
-
-    python = config.get("asr_python") or shutil.which("python3") or "python3"
-    worker = Path(config.get("asr_worker") or Path(__file__).resolve().parent.parent / "scripts" / "asr_worker.py")
-    if not Path(python).exists() and not shutil.which(str(python)):
-        raise FileNotFoundError(f"ASR 解释器不可用: {python}（设置 asr_python 或 BCLI_ASR_PYTHON）")
-    if not worker.exists():
-        raise FileNotFoundError(f"ASR worker 不存在: {worker}")
-
-    env = dict(os.environ)
-    model = model or config.get("asr_model")
-    if model:
-        env["BCLI_ASR_MODEL"] = str(model)
-    proc = subprocess.run(
-        [python, str(worker), *paths],
-        capture_output=True,
-        text=True,
-        timeout=timeout,
-        env=env,
-    )
-    if proc.returncode != 0:
-        raise RuntimeError(proc.stderr.strip()[-800:] or "ASR worker 失败")
-    payload = json.loads(proc.stdout.strip().splitlines()[-1])
-    if not payload.get("ok"):
-        raise RuntimeError((payload.get("error") or {}).get("message", "ASR 失败"))
-    return payload["data"]
+    return asr.transcribe(paths, engine=None, model=model, timeout=timeout)
 
 
 # --------------------------------------------------------------------------

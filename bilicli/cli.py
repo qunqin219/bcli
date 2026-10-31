@@ -140,13 +140,17 @@ def build_parser() -> argparse.ArgumentParser:
     a.add_argument("--segment", type=int, default=25)
     a.add_argument("--no-split", action="store_true")
 
-    s_asr = sub.add_parser("asr", help="音频转文字（SenseVoice）")
+    s_asr = sub.add_parser("asr", help="音频转文字（SenseVoice / Qwen3-ASR）")
     s_asr.add_argument("target", help="BV 号 / 视频 URL / 本地音频文件")
     s_asr.add_argument("-o", "--output", type=Path, default=None, help="音频与转写输出的目录")
     s_asr.add_argument("--segment", type=int, default=300)
-    s_asr.add_argument("--model", default=None, help="SenseVoice 模型目录")
+    s_asr.add_argument("--engine", default=None,
+                       help="ASR 引擎: sensevoice / qwen3-asr / auto（默认读配置，否则用可用引擎）")
+    s_asr.add_argument("--model", default=None, help="覆盖模型目录")
     s_asr.add_argument("--keep-audio", action="store_true", help="保留切分后的 WAV")
     s_asr.add_argument("--srt", type=Path, default=None, help="同时导出 SRT（按分段时长估算时间轴）")
+
+    sub.add_parser("asr-engines", help="列出可用的 ASR 引擎及其路径")
 
     bg = sub.add_parser("bangumi", help="番剧/影视信息")
     bg.add_argument("season_id")
@@ -421,7 +425,13 @@ def run(args: argparse.Namespace) -> Any:
             segment=args.segment,
             split=not args.no_split,
         )
+    if cmd == "asr-engines":
+        from . import asr
+
+        return asr.list_engines()
     if cmd == "asr":
+        from . import asr
+
         target: str = args.target
         if api.BVID_RE.search(target):
             out_dir = args.output or Path(tempfile.gettempdir()) / "bcli-asr" / api.bvid_of(target)
@@ -434,7 +444,7 @@ def run(args: argparse.Namespace) -> Any:
         else:
             paths = [target]
             meta = {"file": target}
-        result = api.transcribe(paths, model=args.model)
+        result = asr.transcribe(paths, engine=args.engine, model=args.model)
         if args.srt:
             from .media import _srt_time
 

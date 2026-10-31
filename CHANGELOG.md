@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.6.0
+
+- ASR 支持双引擎：新增 `qwen3-asr`（Qwen3-ASR-0.6B，中英混说更准），保留 `sensevoice`
+- 新增 `bili asr-engines`，输出每个引擎的解释器、模型路径与可用状态
+- `bili asr --engine sensevoice|qwen3-asr|auto`，默认读 `asr_engine` 配置
+- `bili doctor` 增加逐引擎检查
+- `api.transcribe` 改为委托 bilicli.asr，超时默认 7200 秒
+
 ## 0.5.1
 
 - MCP 写工具新增 `bili_dynamic_post`（需 `BILI_MCP_WRITE=1`）

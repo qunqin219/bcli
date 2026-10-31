@@ -78,6 +78,19 @@ def run() -> dict[str, Any]:
         _check("asr-model", model_ok, str(asr_model), "" if model_ok else "hf download FunAudioLLM/SenseVoiceSmall --local-dir ~/models/SenseVoiceSmall")
     )
 
+    from . import asr as asr_mod
+
+    for info in asr_mod.list_engines()["engines"]:
+        detail = f"{info['python']} → {info['model']}"
+        checks.append(
+            _check(
+                f"asr-engine:{info['engine']}",
+                info["available"],
+                detail,
+                "" if info["available"] else info["reason"],
+            )
+        )
+
     try:
         import qrcode  # noqa: F401
 

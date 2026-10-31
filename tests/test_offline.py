@@ -209,6 +209,40 @@ class TestAss(unittest.TestCase):
         self.assertIn("\\an8", ass)
 
 
+class TestAsrEngines(unittest.TestCase):
+    def test_both_engines_registered(self):
+        from bilicli import asr
+
+        names = {e["engine"] for e in asr.list_engines()["engines"]}
+        self.assertEqual(names, {"sensevoice", "qwen3-asr"})
+
+    def test_aliases(self):
+        from bilicli import asr
+
+        self.assertEqual(asr.ALIASES["qwen"], "qwen3-asr")
+        self.assertEqual(asr.ALIASES["sv"], "sensevoice")
+
+    def test_unavailable_engine_raises(self):
+        import os
+        from unittest import mock
+
+        from bilicli import asr
+
+        env = {
+            "BCLI_ASR_PYTHON": "/nonexistent/python",
+            "BCLI_ASR_MODEL": "/nonexistent/model",
+        }
+        with mock.patch.dict(os.environ, env):
+            with self.assertRaises(RuntimeError):
+                asr.resolve("sensevoice")
+
+    def test_unknown_engine_raises(self):
+        from bilicli import asr
+
+        with self.assertRaises(ValueError):
+            asr.resolve("whisper-xl")
+
+
 class TestMcp(unittest.TestCase):
     def test_initialize_and_tools(self):
         from bilicli import mcp
@@ -240,7 +274,7 @@ class TestCliSurface(unittest.TestCase):
             "status", "whoami", "login", "logout", "search", "video", "user",
             "user-videos", "hot", "rank", "history", "favorites", "watch-later",
             "feed", "my-dynamics", "favorites-items", "like", "coin", "triple",
-            "follow", "fav-add", "fav-remove", "comment", "audio", "asr",
+            "follow", "fav-add", "fav-remove", "comment", "audio", "asr", "asr-engines",
             "update", "api",
         ):
             self.assertIn(expected, names)

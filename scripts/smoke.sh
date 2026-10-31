@@ -40,6 +40,7 @@ check unread        bili unread
 check comments      bili comments BV1xrnz6gEVD -n 3
 check subtitle-srt  bili subtitle-srt BV1xrnz6gEVD
 check batch-list    bili batch BV1GxsX6YEuP --list
+check asr-engines   bili asr-engines
 check ass           bili danmaku-export BV1xrnz6gEVD --format ass -n 3
 
 exit "$fail"
