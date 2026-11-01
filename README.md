@@ -164,6 +164,20 @@ bili asr BV1xxxxxxxxx --engine auto           # 自动选第一个可用引擎
 
 Qwen3-ASR 的 dtype 可用 `BCLI_QWEN_ASR_DTYPE` 控制（`float32` 默认，`bfloat16` 省内存但 CPU 上更慢）。
 
+## 视频画面（给多模态 agent 用）
+
+`bili asr` 只给文字，`bili frames` 给画面：
+
+```bash
+bili frames BV1xxxxxxxxx -n 12                 # 12 张关键帧 + 时间点
+bili frames BV1xxxxxxxxx -n 8 --width 1280     # 更宽
+bili frames BV1xxxxxxxxx --inline              # JSON 里带 base64，喂给视觉模型
+```
+
+做法是先用低画质（默认 480P，不下载音轨）拉流，ffmpeg 按场景切换（`scene>0.3`）取帧，再和时间轴均匀采样合并，保证长对话段落也有覆盖；输出 `{"clock": "08:36", "path": "..."}`，agent 可按顺序把图片交给多模态模型。
+
+MCP 里对应工具是 `bili_frames(bvid, count)`，返回的 `content` 里直接带 `image` 项，Claude Desktop 这类客户端会把图交给模型，不需要自己转 base64。
+
 ## 为什么不用现成的库
 
 `bilibili-api-python` 这类中间层一改接口就整条命令失效，WBI 签名、Cookie、错误码都不可控。这里的取舍是：

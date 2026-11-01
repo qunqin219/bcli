@@ -156,6 +156,16 @@ def build_parser() -> argparse.ArgumentParser:
 
     sub.add_parser("asr-engines", help="列出可用的 ASR 引擎及其路径")
 
+    fr = sub.add_parser("frames", help="抽取视频关键帧（给多模态 agent 看画面）")
+    fr.add_argument("target", help="BV 号 / 视频 URL")
+    fr.add_argument("-n", "--count", type=int, default=12, help="帧数，1–60")
+    fr.add_argument("-o", "--output", type=Path, default=None, help="输出目录")
+    fr.add_argument("--width", type=int, default=960, help="帧宽（像素）")
+    fr.add_argument("--scene", type=float, default=0.3, help="场景变化阈值，越小取帧越密")
+    fr.add_argument("--quality", type=int, default=32, help="下载画质 id（32=480P，16=360P）")
+    fr.add_argument("--inline", action="store_true", help="在 JSON 里内嵌 base64，供 MCP/视觉模型直接使用")
+    fr.add_argument("--keep-video", action="store_true", help="保留下载的 mp4")
+
     bg = sub.add_parser("bangumi", help="番剧/影视信息")
     bg.add_argument("season_id")
     bg.add_argument("--ep", action="store_true", help="把参数当作 ep_id")
@@ -428,6 +438,15 @@ def run(args: argparse.Namespace) -> Any:
             args.output,
             segment=args.segment,
             split=not args.no_split,
+        )
+    if cmd == "frames":
+        from . import frames
+
+        out_dir = args.output or Path(tempfile.gettempdir()) / "bcli-frames" / api.bvid_of(args.target)
+        return frames.extract(
+            auth.client(), api.bvid_of(args.target), out_dir,
+            count=args.count, width=args.width, scene=args.scene,
+            quality=args.quality, inline=args.inline, keep_video=args.keep_video,
         )
     if cmd == "asr-engines":
         from . import asr

@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.7.0
+
+- 新增 `bili frames`：抽取视频关键帧（场景切换 + 时间轴均匀采样合并），输出 JPEG 与时间点，`--inline` 内嵌 base64
+- MCP 新增 `bili_frames`：直接返回图片内容，多模态模型可「看」视频画面
+- `download_video` 支持 `with_audio=False`，取帧不再下载音轨
+
 ## 0.6.1
 
 - 新增 `bili rcmd`：首页推荐流（wbi 接口），支持 `-n`、`--fresh-type`、`--fresh-idx`

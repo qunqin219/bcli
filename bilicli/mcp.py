@@ -9,6 +9,8 @@ from __future__ import annotations
 import json
 import os
 import sys
+import tempfile
+from pathlib import Path
 from typing import Any, Callable
 
 from . import __version__, api, auth
@@ -48,6 +50,12 @@ def build_tools() -> list[dict]:
             "视频详情，可选字幕与评论",
             {"bvid": {"type": "string"}, "subtitle": {"type": "boolean"}, "comments": {"type": "boolean"}},
             lambda a: api.video(auth.client(), api.bvid_of(a["bvid"]), a.get("subtitle", False), a.get("comments", False)),
+        ),
+        _tool(
+            "bili_frames",
+            "抽取视频关键帧并返回图片，多模态模型可直接看画面（含时间点）",
+            {"bvid": {"type": "string"}, "count": _int_prop("帧数", 8), "width": _int_prop("帧宽像素", 960)},
+            _frames,
         ),
         _tool("bili_user", "UP 主资料", {"uid": {"type": "string"}}, lambda a: api.user(auth.client(), a["uid"])),
         _tool(
@@ -182,6 +190,42 @@ def _notifications(a: dict) -> list:
     return social.messages(auth.client(), a.get("kind", "reply"), 1, a.get("limit", 20))
 
 
+def _frames(a: dict) -> dict:
+    from . import frames as frames_mod
+
+    out_dir = Path(tempfile.gettempdir()) / "bcli-frames" / api.bvid_of(a["bvid"])
+    data = frames_mod.extract(
+        auth.client(),
+        api.bvid_of(a["bvid"]),
+        out_dir,
+        count=int(a.get("count", 8)),
+        width=int(a.get("width", 960)),
+        inline=True,
+    )
+    content: list[dict[str, Any]] = [
+        {
+            "type": "text",
+            "text": json.dumps(
+                {
+                    "ok": True,
+                    "bvid": data["bvid"],
+                    "title": data["title"],
+                    "duration": data["duration"],
+                    "frames": [
+                        {"index": f["index"], "clock": f["clock"], "path": f["path"]}
+                        for f in data["frames"]
+                    ],
+                    "hint": "每张图按顺序对应上面的 clock 时间点",
+                },
+                ensure_ascii=False,
+            ),
+        }
+    ]
+    for f in data["frames"]:
+        content.append({"type": "image", "data": f["jpeg_base64"], "mimeType": "image/jpeg"})
+    return {"_content": content}
+
+
 def _respond(payload: dict) -> None:
     sys.stdout.write(json.dumps(payload, ensure_ascii=False) + "\n")
     sys.stdout.flush()
@@ -219,6 +263,8 @@ def handle(request: dict, tools: dict[str, dict]) -> dict | None:
             return {"jsonrpc": "2.0", "id": req_id, "error": {"code": -32602, "message": f"unknown tool: {name}"}}
         try:
             result = tool["_handler"](arguments)
+            if isinstance(result, dict) and "_content" in result:
+                return {"jsonrpc": "2.0", "id": req_id, "result": {"content": result["_content"]}}
             text = json.dumps({"ok": True, "data": result}, ensure_ascii=False)
             return {"jsonrpc": "2.0", "id": req_id, "result": {"content": [{"type": "text", "text": text}]}}
         except Exception as exc:  # noqa: BLE001

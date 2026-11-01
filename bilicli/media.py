@@ -41,6 +41,7 @@ def download_video(
     quality: int = 80,
     part: int = 1,
     audio_only: bool = False,
+    with_audio: bool = True,
 ) -> dict[str, Any]:
     info = c.get("/x/web-interface/view", {"bvid": bvid})
     pages = info.get("pages") or []
@@ -61,6 +62,8 @@ def download_video(
     audio = max(audios, key=lambda a: a.get("bandwidth", 0)) if audios else None
 
     out_dir.mkdir(parents=True, exist_ok=True)
+    if not with_audio:
+        audio = None
     if audio_only:
         if not audio:
             raise NotFoundError("no_audio", "没有音轨")
@@ -93,6 +96,7 @@ def download_video(
         "quality": QUALITY_NAMES.get(video.get("id"), str(video.get("id"))),
         "file": str(final),
         "bytes": final.stat().st_size,
+        "duration": info.get("duration") or 0,
     }
 
 

@@ -243,6 +243,29 @@ class TestAsrEngines(unittest.TestCase):
             asr.resolve("whisper-xl")
 
 
+class TestFrames(unittest.TestCase):
+    def test_merge_picks_across_timeline(self):
+        import tempfile
+        from pathlib import Path as P
+
+        from bilicli import frames
+
+        with tempfile.TemporaryDirectory() as d:
+            paths = []
+            for i in range(6):
+                p = P(d) / f"f{i}.jpg"
+                p.write_bytes(b"x")
+                paths.append(p)
+            cands = [(i * 20.0, paths[i]) for i in range(6)]  # 0..100 秒
+            picked = frames._merge(cands, duration=120.0, count=3)
+            self.assertEqual(len(picked), 3)
+            # 时间轴均匀分布：约 20 / 60 / 100 秒附近
+            self.assertLess(picked[0][0], 30)
+            self.assertGreater(picked[2][0], 90)
+            # 未选中的文件应被删除
+            self.assertEqual(len(list(P(d).glob("*.jpg"))), 3)
+
+
 class TestMcp(unittest.TestCase):
     def test_initialize_and_tools(self):
         from bilicli import mcp
@@ -275,6 +298,7 @@ class TestCliSurface(unittest.TestCase):
             "user-videos", "hot", "rank", "history", "favorites", "watch-later",
             "feed", "my-dynamics", "favorites-items", "like", "coin", "triple",
             "follow", "fav-add", "fav-remove", "comment", "audio", "asr", "asr-engines", "rcmd",
+            "frames",
             "update", "api",
         ):
             self.assertIn(expected, names)
