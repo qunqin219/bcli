@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.6.1
+
+- 新增 `bili rcmd`：首页推荐流（wbi 接口），支持 `-n`、`--fresh-type`、`--fresh-idx`
+
 ## 0.6.0
 
 - ASR 支持双引擎：新增 `qwen3-asr`（Qwen3-ASR-0.6B，中英混说更准），保留 `sensevoice`

@@ -88,6 +88,10 @@ def build_parser() -> argparse.ArgumentParser:
 
     ht = sub.add_parser("hot", help="热门")
     ht.add_argument("-n", "--limit", type=int, default=20)
+    rc = sub.add_parser("rcmd", help="首页推荐")
+    rc.add_argument("-n", "--limit", type=int, default=12)
+    rc.add_argument("--fresh-type", type=int, default=3, help="1=刷新 3=首次加载")
+    rc.add_argument("--fresh-idx", type=int, default=1, help="越大越往下翻")
     rk = sub.add_parser("rank", help="排行榜")
     rk.add_argument("--rid", type=int, default=0, help="分区 id，0 为全站")
     rk.add_argument("-n", "--limit", type=int, default=20)
@@ -536,6 +540,8 @@ def run(args: argparse.Namespace) -> Any:
         return api.video_qualities(auth.client(), api.bvid_of(args.bvid))
     if cmd == "hot":
         return api.hot(auth.client(), args.limit)
+    if cmd == "rcmd":
+        return api.recommend(auth.client(), args.limit, args.fresh_type, args.fresh_idx)
     if cmd in {"notifications", "unread", "followings", "fans", "comments", "reply", "like-comment"}:
         from . import social
 

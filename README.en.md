@@ -16,7 +16,7 @@ bili video BV1xxxxxxxxx -s -c   # -s subtitles, -c comments
 bili video BV1xxxxxxxxx --ai --danmaku --chapters --parts --related
 bili user 946974
 bili user-videos 946974 -n 10
-bili hot / rank
+bili hot / rank / rcmd
 bili history / favorites / favorites-items / watch-later / feed / my-dynamics
 bili audio BV1xxxxxxxxx -o ./a --segment 300
 bili asr BV1xxxxxxxxx --keep-audio

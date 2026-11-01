@@ -237,6 +237,33 @@ def hot(c: Client, limit: int = 20) -> list[dict]:
     ]
 
 
+def recommend(c: Client, limit: int = 12, fresh_type: int = 3, fresh_idx: int = 1) -> list[dict]:
+    """首页推荐（未登录也能取，登录后更接近 App 的个性化结果）。"""
+    data = c.get(
+        "/x/web-interface/wbi/index/top/feed/rcmd",
+        {"ps": min(limit, 30), "fresh_type": fresh_type, "fresh_idx": fresh_idx, "feed_version": "V8", "homepage_ver": 1},
+    ) or {}
+    rows = data.get("item") or []
+    out = []
+    for r in rows:
+        if r.get("goto") not in (None, "av"):
+            continue
+        owner = r.get("owner") or {}
+        out.append(
+            {
+                "bvid": r.get("bvid") or "",
+                "title": r.get("title") or "",
+                "owner": owner.get("name", ""),
+                "view": _int((r.get("stat") or {}).get("view")),
+                "duration": r.get("duration"),
+                "reason": r.get("rcmd_reason") or "",
+            }
+        )
+        if len(out) >= limit:
+            break
+    return out
+
+
 def rank(c: Client, limit: int = 20, rid: int = 0) -> list[dict]:
     rows = (c.get("/x/web-interface/ranking/v2", {"rid": rid, "type": "all"}) or {}).get("list") or []
     return [

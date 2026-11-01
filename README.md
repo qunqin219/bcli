@@ -10,7 +10,7 @@ bili search "影视飓风" -n 10    # --type user 搜 UP 主
 bili video BV1xxxxxxxxx -s -c  # -s 字幕全文，-c 评论
 bili user 946974
 bili user-videos 946974 -n 10
-bili hot / rank
+bili hot / rank / rcmd
 bili history / favorites / watch-later / feed / my-dynamics
 bili favorites-items 4425429009 --page 1 # 收藏夹里的视频
 bili video BV1xxxxxxxxx --ai --danmaku --chapters --parts --related

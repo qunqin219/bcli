@@ -274,7 +274,7 @@ class TestCliSurface(unittest.TestCase):
             "status", "whoami", "login", "logout", "search", "video", "user",
             "user-videos", "hot", "rank", "history", "favorites", "watch-later",
             "feed", "my-dynamics", "favorites-items", "like", "coin", "triple",
-            "follow", "fav-add", "fav-remove", "comment", "audio", "asr", "asr-engines",
+            "follow", "fav-add", "fav-remove", "comment", "audio", "asr", "asr-engines", "rcmd",
             "update", "api",
         ):
             self.assertIn(expected, names)
