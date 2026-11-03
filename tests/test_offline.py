@@ -266,6 +266,41 @@ class TestFrames(unittest.TestCase):
             self.assertEqual(len(list(P(d).glob("*.jpg"))), 3)
 
 
+class TestAnonymousBuvid(unittest.TestCase):
+    def test_buvid_fetched_once_and_cached(self):
+        import json
+        import os
+        import tempfile
+        from unittest import mock
+
+        from bilicli import http
+
+        calls = []
+
+        def fake_open(self, url, headers, retries=None):
+            calls.append(url)
+            if "finger/spi" in url:
+                return json.dumps({"data": {"b_3": "B3", "b_4": "B4"}}).encode()
+            return b'{"code":0,"data":{}}'
+
+        with tempfile.TemporaryDirectory() as d, \
+             mock.patch.dict(os.environ, {"BCLI_CONFIG_DIR": d}), \
+             mock.patch.object(http.Client, "_open", fake_open):
+            c = http.Client()
+            c.get("/x/web-interface/view", {"bvid": "BV1"})
+            self.assertEqual(c.cookies.get("buvid3"), "B3")
+            self.assertEqual(c.cookies.get("buvid4"), "B4")
+            c.get("/x/web-interface/view", {"bvid": "BV1"})
+            self.assertEqual(len([u for u in calls if "finger/spi" in u]), 1)
+
+    def test_logged_in_skips_buvid(self):
+        from bilicli import http
+
+        c = http.Client({"sessdata": "S"})
+        c._ensure_buvid()
+        self.assertNotIn("buvid3", c.cookies)
+
+
 class TestMcp(unittest.TestCase):
     def test_initialize_and_tools(self):
         from bilicli import mcp

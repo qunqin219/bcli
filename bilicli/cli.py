@@ -156,6 +156,13 @@ def build_parser() -> argparse.ArgumentParser:
 
     sub.add_parser("asr-engines", help="列出可用的 ASR 引擎及其路径")
 
+    dl = sub.add_parser("daily", help="每日经验任务：登录/观看/分享/投币")
+    dl.add_argument("--coins", type=int, default=0, help="投几个币（会消耗硬币，最多 5 个）")
+    dl.add_argument("--share", action="store_true", help="执行每日分享（会在账号上产生一次公开分享）")
+    dl.add_argument("--no-watch", action="store_true", help="跳过观看")
+    dl.add_argument("--bvid", default=None, help="指定用于观看/分享的视频")
+    dl.add_argument("--jitter", type=int, default=0, help="开始前随机等待 0..N 秒；动作之间另有随机间隔")
+
     fr = sub.add_parser("frames", help="抽取视频关键帧（给多模态 agent 看画面）")
     fr.add_argument("target", help="BV 号 / 视频 URL")
     fr.add_argument("-n", "--count", type=int, default=12, help="帧数，1–60")
@@ -438,6 +445,15 @@ def run(args: argparse.Namespace) -> Any:
             args.output,
             segment=args.segment,
             split=not args.no_split,
+        )
+    if cmd == "daily":
+        from . import daily
+
+        return daily.run(
+            auth.client(), bvid=args.bvid,
+            coins=max(0, min(args.coins, 5)),
+            share_video=args.share, watch_video=not args.no_watch,
+            jitter=args.jitter,
         )
     if cmd == "frames":
         from . import frames

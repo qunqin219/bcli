@@ -81,6 +81,7 @@ class Client:
         self.cache_ttl = int(os.environ.get("BILI_CACHE_TTL", "0"))
         self._wbi: tuple[str, str] | None = None
         self._wbi_at = 0.0
+        self._buvid_tried = False
 
     # -- headers ---------------------------------------------------------
     def headers(self, referer: str = "https://www.bilibili.com/") -> dict[str, str]:
@@ -97,6 +98,39 @@ class Client:
     @property
     def logged_in(self) -> bool:
         return bool(self.cookies.get("SESSDATA"))
+
+    # -- anonymous device id ---------------------------------------------
+    def _ensure_buvid(self) -> None:
+        """匿名请求也带 buvid3/buvid4，否则 view/comments 这类接口会 412/-352 风控。
+
+        buvid 来自 /x/frontend/finger/spi，缓存在配置目录 7 天。
+        """
+        if self.logged_in or self.cookies.get("buvid3") or self._buvid_tried:
+            return
+        self._buvid_tried = True
+        cache = Path(os.environ.get("BCLI_CONFIG_DIR", Path.home() / ".config" / "bcli")) / "buvid.json"
+        try:
+            cached = json.loads(cache.read_text())
+            if cached.get("buvid3") and time.time() - float(cached.get("ts", 0)) < 7 * 86400:
+                self.cookies["buvid3"] = cached["buvid3"]
+                if cached.get("buvid4"):
+                    self.cookies["buvid4"] = cached["buvid4"]
+                return
+        except (OSError, ValueError):
+            pass
+        try:
+            payload = json.loads(self._open(f"{API}/x/frontend/finger/spi", self.headers(), retries=1))
+            data = payload.get("data") or {}
+            b3, b4 = data.get("b_3") or "", data.get("b_4") or ""
+            if not b3:
+                return
+            self.cookies["buvid3"] = b3
+            if b4:
+                self.cookies["buvid4"] = b4
+            cache.parent.mkdir(parents=True, exist_ok=True)
+            cache.write_text(json.dumps({"buvid3": b3, "buvid4": b4, "ts": time.time()}))
+        except Exception:  # noqa: BLE001 - 匿名兜底失败不该阻断请求
+            pass
 
     # -- WBI signing -----------------------------------------------------
     def wbi_keys(self) -> tuple[str, str]:
@@ -244,6 +278,7 @@ class Client:
     ) -> Any:
         if auth_required and not self.logged_in:
             raise AuthError("not_authenticated", "请先运行 bili login 登录")
+        self._ensure_buvid()
         params = params or {}
         if wbi:
             params = self.sign_wbi(params)

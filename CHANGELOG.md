@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.7.1
+
+- 匿名请求自动获取并携带 `buvid3/buvid4`（缓存在配置目录 7 天），未登录时 `video`、`comments` 不再被 412/-352 拦
+- README 补充「不登录能用什么」对照表
+
 ## 0.7.0
 
 - 新增 `bili frames`：抽取视频关键帧（场景切换 + 时间轴均匀采样合并），输出 JPEG 与时间点，`--inline` 内嵌 base64

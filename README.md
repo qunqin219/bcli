@@ -115,6 +115,19 @@ bili update           # 二进制安装：自动下载并原地替换
 
 `bili login` 会生成二维码、轮询扫码状态，并用 `http.cookiejar` 从 `Set-Cookie` 里取凭证——只解析回调 URL 的话 SESSDATA 会是空的。
 
+## 不登录能用什么
+
+`bili` 不带凭证也能跑，但 B 站对匿名调用有风控，覆盖面有限（本机实测）：
+
+| 可用 | 不可用（需登录） |
+|---|---|
+| `hot` / `rank` / `rcmd` / `search` | `subtitle-srt`、`video -s`（字幕要登录） |
+| `video`（详情） | `user-videos`（-352 风控） |
+| `comments`（评论） | 收藏夹、历史、稍后再看、动态、关注/粉丝 |
+| `bangumi` / `bangumi-rank` | 所有写操作（投币、点赞、评论、关注） |
+
+匿名请求会自动带上 `buvid3/buvid4`（取自 `/x/frontend/finger/spi`，缓存在配置目录 7 天），不带这两个 cookie 时 `video`、`comments` 会直接 412/-352。要完整功能仍然需要 `bili login` 扫码一次。
+
 ## 配置文件（可选）
 
 `~/.config/bcli/config.json`，环境变量优先级更高：
