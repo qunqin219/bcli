@@ -10,6 +10,11 @@ import json
 import os
 import shutil
 import subprocess
+import tempfile
+import time
+import urllib.error
+import urllib.request
+import uuid
 from pathlib import Path
 from typing import Any
 
@@ -40,6 +45,15 @@ ENGINES: dict[str, dict[str, Any]] = {
         "model_default": Path.home() / "models" / "Qwen3-ASR-0.6B",
         "model_url": "https://huggingface.co/Qwen/Qwen3-ASR-0.6B",
     },
+    "groq": {
+        "label": "Groq Whisper large-v3-turbo（云端，200×实时，免费额度 8h/天）",
+        "remote": True,
+        "key_env": "GROQ_API_KEY",
+        "config_key": "groq_api_key",
+        "base_url": "https://api.groq.com/openai/v1",
+        "model_default": "whisper-large-v3-turbo",
+        "model_url": "https://console.groq.com/docs/speech-to-text",
+    },
 }
 
 ALIASES = {
@@ -50,6 +64,8 @@ ALIASES = {
     "qwen3": "qwen3-asr",
     "qwen3_asr": "qwen3-asr",
     "qwen-asr": "qwen3-asr",
+    "whisper": "groq",
+    "groq-whisper": "groq",
 }
 
 
@@ -70,6 +86,18 @@ def _model(engine: str, override: str | None = None) -> Path:
 
 def describe(engine: str) -> dict[str, Any]:
     spec = ENGINES[engine]
+    if spec.get("remote"):
+        key = os.environ.get(spec["key_env"]) or config.get(spec["config_key"])
+        return {
+            "engine": engine,
+            "label": spec["label"],
+            "available": bool(key),
+            "remote": True,
+            "model": spec["model_default"],
+            "base_url": spec["base_url"],
+            "model_url": spec["model_url"],
+            "reason": "" if key else f"未设置 {spec['key_env']}（或写进 ~/.config/bcli/config.json 的 {spec['config_key']}）",
+        }
     python = _python(engine)
     model = _model(engine)
     worker = Path(config.get(spec["worker_key"]) or spec["worker"])
@@ -125,6 +153,96 @@ def resolve(name: str | None = None) -> str:
     )
 
 
+GROQ_MAX_BYTES = 24 * 1024 * 1024
+
+
+def _multipart(fields: dict[str, str], file_field: str, data: bytes, filename: str, mime: str) -> tuple[bytes, str]:
+    boundary = "----bcli" + uuid.uuid4().hex
+    out = bytearray()
+    for k, v in fields.items():
+        out += f"--{boundary}\r\nContent-Disposition: form-data; name=\"{k}\"\r\n\r\n{v}\r\n".encode()
+    out += (f"--{boundary}\r\nContent-Disposition: form-data; name=\"{file_field}\"; filename=\"{filename}\"\r\n"
+            f"Content-Type: {mime}\r\n\r\n").encode()
+    out += data + b"\r\n"
+    out += f"--{boundary}--\r\n".encode()
+    return bytes(out), f"multipart/form-data; boundary={boundary}"
+
+
+def _ffmpeg_bin() -> str:
+    exe = shutil.which("ffmpeg")
+    if not exe:
+        raise FileNotFoundError("Groq 引擎需要 ffmpeg 压缩音频（apt install ffmpeg）")
+    return exe
+
+
+def _to_mp3(path: str, workdir: Path) -> Path:
+    """16k 单声道 32kbps mp3：1 小时约 14MB，稳在 Groq 25MB 以内。"""
+    src = Path(path)
+    if src.suffix.lower() in {".mp3", ".m4a", ".wav", ".flac", ".ogg"} and src.stat().st_size <= GROQ_MAX_BYTES:
+        return src
+    out = workdir / (src.stem + ".groq.mp3")
+    subprocess.run(
+        [_ffmpeg_bin(), "-hide_banner", "-loglevel", "error", "-y", "-i", str(src),
+         "-ac", "1", "-ar", "16000", "-b:a", "32k", str(out)],
+        check=True, timeout=3600,
+    )
+    if out.stat().st_size > GROQ_MAX_BYTES:
+        raise RuntimeError(f"压缩后仍超过 25MB: {out.stat().st_size / 1e6:.1f}MB")
+    return out
+
+
+def _groq_transcribe(paths: list[str], model: str) -> dict[str, Any]:
+    spec = ENGINES["groq"]
+    key = os.environ.get(spec["key_env"]) or config.get(spec["config_key"])
+    if not key:
+        raise RuntimeError(f"缺少 {spec['key_env']}")
+    workdir = Path(tempfile.mkdtemp(prefix="bcli-groq-"))
+    items: list[dict[str, Any]] = []
+    started = time.time()
+    for raw_path in paths:
+        audio = _to_mp3(raw_path, workdir)
+        body, ctype = _multipart(
+            {"model": model, "response_format": "verbose_json", "temperature": "0"},
+            "file", audio.read_bytes(), audio.name, "audio/mpeg",
+        )
+        req = urllib.request.Request(
+            f"{spec['base_url']}/audio/transcriptions", data=body,
+            headers={
+                "Authorization": f"Bearer {key}",
+                "Content-Type": ctype,
+                # Groq 在 Cloudflare 后面，urllib 默认 UA 会被 1010 拦掉
+                "User-Agent": "bili-cli/1.0 (+https://github.com/qunqin219/bcli)",
+            },
+        )
+        try:
+            with urllib.request.urlopen(req, timeout=1800) as resp:
+                payload = json.loads(resp.read().decode())
+        except urllib.error.HTTPError as exc:
+            detail = exc.read().decode()[:400]
+            if exc.code == 429:
+                raise RuntimeError(f"Groq 限流（免费额度 8h/天、文件 ≤25MB）：{detail}") from None
+            raise RuntimeError(f"Groq 返回 {exc.code}: {detail}") from None
+        segments = [
+            {"start": round(s.get("start", 0), 3), "end": round(s.get("end", 0), 3),
+             "text": (s.get("text") or "").strip()}
+            for s in payload.get("segments") or []
+        ]
+        items.append({
+            "file": raw_path,
+            "text": (payload.get("text") or "").strip(),
+            "language": payload.get("language", ""),
+            "emotion": "",
+            "segments": segments,
+        })
+    return {
+        "model": model,
+        "load_seconds": 0,
+        "transcribe_seconds": round(time.time() - started, 2),
+        "items": items,
+        "remote": True,
+    }
+
+
 def transcribe(
     paths: list[str],
     engine: str | None = None,
@@ -134,6 +252,11 @@ def transcribe(
     key = resolve(engine)
     spec = ENGINES[key]
     info = describe(key)
+    if spec.get("remote"):
+        data = _groq_transcribe(paths, model or spec["model_default"])
+        data["engine"] = key
+        data["engine_label"] = spec["label"]
+        return data
     if model:
         info["model"] = str(Path(model).expanduser())
     env = dict(os.environ)

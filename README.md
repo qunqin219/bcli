@@ -153,6 +153,7 @@ bili update           # 二进制安装：自动下载并原地替换
 |---|---|---|
 | `sensevoice`（默认） | SenseVoice-Small（900 MB） | 非自回归，CPU 上 RTF≈0.1，中文强、带标点；英文术语弱 |
 | `qwen3-asr` | Qwen3-ASR-0.6B（1.8 GB） | 自回归，CPU 上慢约 8 倍；中英混说、术语明显更准，支持 52 种语言 |
+| `groq`（云端） | Whisper large-v3-turbo | 200×实时，12 分钟视频约 2 秒；免费额度 8 小时音频/天、单文件 ≤25MB，超额 429 不扣费 |
 
 ```bash
 # SenseVoice
@@ -176,6 +177,17 @@ bili asr BV1xxxxxxxxx --engine auto           # 自动选第一个可用引擎
 ```
 
 Qwen3-ASR 的 dtype 可用 `BCLI_QWEN_ASR_DTYPE` 控制（`float32` 默认，`bfloat16` 省内存但 CPU 上更慢）。
+
+### 云端引擎：Groq（最快，零本地依赖）
+
+```bash
+export GROQ_API_KEY=gsk_xxx                 # 或写进 ~/.config/bcli/config.json 的 groq_api_key
+bili asr BV1xxxxxxxxx --engine groq         # 也接受 --engine whisper
+```
+
+不上传整段 WAV：先用 ffmpeg 压成 16k 单声道 32kbps mp3（1 小时约 14MB，稳在免费档 25MB 内），再一次请求拿到带时间轴的
+`verbose_json`，所以 `--srt` 用的是真实逐句时间戳，不是按分段推算的。免费额度是每个 whisper 模型
+7200 音频秒/小时、28800 秒/天，超额返回 429 且不会扣费（免费档不绑卡）。
 
 ## 视频画面（给多模态 agent 用）
 

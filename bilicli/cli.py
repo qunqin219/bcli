@@ -488,11 +488,19 @@ def run(args: argparse.Namespace) -> Any:
             from .media import _srt_time
 
             cues = []
-            for idx, item in enumerate(result.get("items") or [], 1):
-                start = (idx - 1) * args.segment
-                cues.append(
-                    f"{idx}\n{_srt_time(start)} --> {_srt_time(start + args.segment)}\n{item.get('text', '')}\n"
-                )
+            segments = [seg for item in result.get("items") or [] for seg in (item.get("segments") or [])]
+            if segments:
+                for idx, seg in enumerate(segments, 1):
+                    cues.append(
+                        f"{idx}\n{_srt_time(seg.get('start', 0))} --> {_srt_time(seg.get('end', 0))}\n"
+                        f"{seg.get('text', '')}\n"
+                    )
+            else:
+                for idx, item in enumerate(result.get("items") or [], 1):
+                    start = (idx - 1) * args.segment
+                    cues.append(
+                        f"{idx}\n{_srt_time(start)} --> {_srt_time(start + args.segment)}\n{item.get('text', '')}\n"
+                    )
             args.srt.write_text("\n".join(cues), encoding="utf-8")
             result["srt"] = str(args.srt)
         if not args.keep_audio and api.BVID_RE.search(target):

@@ -214,7 +214,7 @@ class TestAsrEngines(unittest.TestCase):
         from bilicli import asr
 
         names = {e["engine"] for e in asr.list_engines()["engines"]}
-        self.assertEqual(names, {"sensevoice", "qwen3-asr"})
+        self.assertEqual(names, {"sensevoice", "qwen3-asr", "groq"})
 
     def test_aliases(self):
         from bilicli import asr
@@ -386,6 +386,42 @@ class TestClientCookies(unittest.TestCase):
         c = Client()
         self.assertFalse(c.logged_in)
         self.assertNotIn("Cookie", c.headers())
+
+
+class TestGroqEngine(unittest.TestCase):
+    def test_engine_registered(self):
+        from bilicli import asr
+
+        self.assertIn("groq", asr.ENGINES)
+        self.assertTrue(asr.ENGINES["groq"]["remote"])
+        self.assertEqual(asr.ALIASES["whisper"], "groq")
+
+    def test_describe_without_key(self):
+        from bilicli import asr
+
+        with mock.patch.dict(os.environ, {"GROQ_API_KEY": ""}, clear=False):
+            with mock.patch("bilicli.asr.config.get", return_value=None):
+                info = asr.describe("groq")
+        self.assertFalse(info["available"])
+        self.assertIn("GROQ_API_KEY", info["reason"])
+
+    def test_describe_with_key(self):
+        from bilicli import asr
+
+        with mock.patch.dict(os.environ, {"GROQ_API_KEY": "gsk_test"}, clear=False):
+            info = asr.describe("groq")
+        self.assertTrue(info["available"])
+        self.assertEqual(info["model"], "whisper-large-v3-turbo")
+
+    def test_multipart_body(self):
+        from bilicli import asr
+
+        body, ctype = asr._multipart({"model": "whisper-large-v3-turbo"}, "file", b"abc", "a.mp3", "audio/mpeg")
+        self.assertIn("multipart/form-data; boundary=", ctype)
+        self.assertIn(b'name="model"', body)
+        self.assertIn(b"whisper-large-v3-turbo", body)
+        self.assertIn(b'filename="a.mp3"', body)
+        self.assertTrue(body.endswith(b"--\r\n"))
 
 
 if __name__ == "__main__":

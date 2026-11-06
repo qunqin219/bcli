@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.8.0
+
+- ASR 新增第三个引擎 `groq`（云端 Whisper large-v3-turbo，别名 `whisper`）：200×实时，12 分钟视频约 2 秒
+  - 先用 ffmpeg 压成 16k 单声道 32kbps mp3 再上传，1 小时音频约 14MB，稳在 Groq 免费档 25MB 以内
+  - 用 `verbose_json` 拿真实逐句时间戳，`--srt` 不再按分段时长推算
+  - 免费额度 7200 音频秒/小时、28800 秒/天，超额 429 直接报错、不扣费；密钥走 `GROQ_API_KEY` 或 `groq_api_key`
+  - 注意：Groq 在 Cloudflare 后面，urllib 默认 UA 会被 1010 拦掉，请求里固定带自定义 UA
+- `bili asr-engines` 现在会区分本地引擎（解释器 + 模型目录）和云端引擎（只看密钥）
+
 ## 0.7.1
 
 - 匿名请求自动获取并携带 `buvid3/buvid4`（缓存在配置目录 7 天），未登录时 `video`、`comments` 不再被 412/-352 拦
