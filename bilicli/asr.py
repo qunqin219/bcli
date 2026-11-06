@@ -54,6 +54,15 @@ ENGINES: dict[str, dict[str, Any]] = {
         "model_default": "whisper-large-v3-turbo",
         "model_url": "https://console.groq.com/docs/speech-to-text",
     },
+    "groq-large": {
+        "label": "Groq Whisper large-v3（云端，比 turbo 更准、稍慢）",
+        "remote": True,
+        "key_env": "GROQ_API_KEY",
+        "config_key": "groq_api_key",
+        "base_url": "https://api.groq.com/openai/v1",
+        "model_default": "whisper-large-v3",
+        "model_url": "https://console.groq.com/docs/speech-to-text",
+    },
 }
 
 ALIASES = {
@@ -66,6 +75,9 @@ ALIASES = {
     "qwen-asr": "qwen3-asr",
     "whisper": "groq",
     "groq-whisper": "groq",
+    "groq-turbo": "groq",
+    "whisper-large": "groq-large",
+    "whisper-large-v3": "groq-large",
 }
 
 
@@ -191,8 +203,8 @@ def _to_mp3(path: str, workdir: Path) -> Path:
     return out
 
 
-def _groq_transcribe(paths: list[str], model: str) -> dict[str, Any]:
-    spec = ENGINES["groq"]
+def _groq_transcribe(engine: str, paths: list[str], model: str) -> dict[str, Any]:
+    spec = ENGINES[engine]
     key = os.environ.get(spec["key_env"]) or config.get(spec["config_key"])
     if not key:
         raise RuntimeError(f"缺少 {spec['key_env']}")
@@ -253,7 +265,7 @@ def transcribe(
     spec = ENGINES[key]
     info = describe(key)
     if spec.get("remote"):
-        data = _groq_transcribe(paths, model or spec["model_default"])
+        data = _groq_transcribe(key, paths, model or spec["model_default"])
         data["engine"] = key
         data["engine_label"] = spec["label"]
         return data

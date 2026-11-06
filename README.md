@@ -154,6 +154,7 @@ bili update           # 二进制安装：自动下载并原地替换
 | `sensevoice`（默认） | SenseVoice-Small（900 MB） | 非自回归，CPU 上 RTF≈0.1，中文强、带标点；英文术语弱 |
 | `qwen3-asr` | Qwen3-ASR-0.6B（1.8 GB） | 自回归，CPU 上慢约 8 倍；中英混说、术语明显更准，支持 52 种语言 |
 | `groq`（云端） | Whisper large-v3-turbo | 200×实时，12 分钟视频约 2 秒；免费额度 8 小时音频/天、单文件 ≤25MB，超额 429 不扣费 |
+| `groq-large`（云端） | Whisper large-v3 | 同上，术语和数字更稳，12 分钟约 5 秒 |
 
 ```bash
 # SenseVoice

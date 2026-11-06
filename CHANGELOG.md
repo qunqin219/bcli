@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.8.1
+
+- ASR 新增 `groq-large` 引擎（Whisper large-v3，别名 `whisper-large` / `whisper-large-v3`）：比 `groq` 的 turbo 版术语和数字更稳，12 分钟音频约 5 秒
+- 两个云端引擎共用同一份 `GROQ_API_KEY` / `groq_api_key`，`asr-engines` 分别显示各自模型
+
 ## 0.8.0
 
 - ASR 新增第三个引擎 `groq`（云端 Whisper large-v3-turbo，别名 `whisper`）：200×实时，12 分钟视频约 2 秒

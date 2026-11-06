@@ -214,7 +214,7 @@ class TestAsrEngines(unittest.TestCase):
         from bilicli import asr
 
         names = {e["engine"] for e in asr.list_engines()["engines"]}
-        self.assertEqual(names, {"sensevoice", "qwen3-asr", "groq"})
+        self.assertEqual(names, {"sensevoice", "qwen3-asr", "groq", "groq-large"})
 
     def test_aliases(self):
         from bilicli import asr
